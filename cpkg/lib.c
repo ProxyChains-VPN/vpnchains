@@ -81,7 +81,7 @@ ssize_t write(int sock_fd, const void *buf, size_t count){
     bson_t b = BSON_INITIALIZER;
     BSON_APPEND_UTF8(&b, "Call", "write");
     BSON_APPEND_INT32(&b, "Fd", sock_fd);
-    //BSON_APPEND_(&b, "Buffer", ??);
+    BSON_APPEND_BINARY(&b, "Buffer", BSON_SUBTYPE_BINARY, buf, count);
     BSON_APPEND_INT32(&b, "BytesToWrite", count);
 
     tmp_sock_fd = open("/tmp/vpnchains.socket", O_RDWR);
