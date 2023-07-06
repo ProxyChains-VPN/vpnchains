@@ -1,38 +1,41 @@
 package ipc
 
 import (
+	"log"
 	"net"
-	"os"
 )
 
 type IpcConnection struct {
-	ProcessConn net.Conn
+	SocketPath string
 }
 
 type IpcCommunicator interface {
-	EstablishIpc(socketPath string) (*IpcConnection, error)
+	New() *IpcConnection
+	Listen() error
 }
 
-// на данный момент функция устанавливает связь однократно
-func EstablishIpc(socketPath string) (*IpcConnection, error) {
-	listener, err := net.ListenUnix(
-		"unix",
-		&net.UnixAddr{
-			Name: socketPath,
-			Net:  "unix",
-		},
-	)
+func New(socketPath string) *IpcConnection {
+	return &IpcConnection{SocketPath: socketPath}
+}
+
+func (ipcConnection *IpcConnection) Listen(handler func(conn net.Conn)) error {
+	socket, err := net.Listen("unix", ipcConnection.SocketPath)
+
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	defer listener.Close()
-	defer os.Remove(socketPath) // сделать многа сокетов?
+	for {
+		conn, err := socket.Accept()
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	processConn, err := listener.Accept()
-	if err != nil {
-		return nil, err
+		go func() {
+			handler(conn)
+			conn.Close()
+		}()
 	}
 
-	return &IpcConnection{processConn}, nil
+	return nil
 }

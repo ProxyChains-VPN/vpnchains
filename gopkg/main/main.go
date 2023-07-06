@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 const DefaultSockAddr = "/tmp/vpnchains.socket"
@@ -34,6 +36,7 @@ func main() {
 	//if err != nil {
 	//	log.Fatalln(err)
 	//}
+
 	//doc, _ := bson.Marshal(
 	//	bson.D{
 	//		{"call", "write"},
@@ -51,4 +54,12 @@ func main() {
 	//	bson.Unmarshal(val, &res)
 	//	log.Fatalln(res)
 	//}
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		os.Remove(DefaultSockAddr)
+		os.Exit(1)
+	}()
 }
