@@ -1,8 +1,9 @@
 package main
 
 import (
-	"abobus/gopkg/so_util"
+	"abobus/gopkg/ipc"
 	"fmt"
+	"go.mongodb.org/mongo-driver/bson"
 	"log"
 	"os"
 )
@@ -21,18 +22,31 @@ func main() {
 		os.Exit(0)
 	}
 
-	libPath := args[1]
-	commandPath := args[2]
-	commandArgs := args[3:]
+	//libPath := args[1]
+	//commandPath := args[2]
+	//commandArgs := args[3:]
 
-	cmd := so_util.CreateCommandWithInjectedLibrary(libPath, commandPath, commandArgs)
+	//cmd := ipc.CreateCommandWithInjectedLibrary(libPath, commandPath, commandArgs)
 
-	err := cmd.Run()
-	if err != nil {
-		log.Fatalln(err)
-	}
+	//err := cmd.Run()
+	//if err != nil {
+	//	log.Fatalln(err)
+	//}
+	//
+	//err = cmd.Wait()
+	//if err != nil {
+	//	log.Fatalln(err)
+	//}
+	doc, _ := bson.Marshal(
+		bson.D{
+			{"call", "write"},
+			{"Fd", 6},
+			{"Buffer", []byte("anime")},
+			{"BytesToWrite", 10050},
+		},
+	)
 
-	err = cmd.Wait()
+	_, err := ipc.HandleRequest(doc)
 	if err != nil {
 		log.Fatalln(err)
 	}
