@@ -4,4 +4,4 @@ CC=go build
 all: main
 
 main:
-	$(CC) -o build/app pkg/main/main.go
+	$(CC) -o build/app gopkg/main/main.go

@@ -1,4 +1,4 @@
-package so_util
+package ipc
 
 type ConnectRequest struct {
 	SockFd int32
