@@ -3,8 +3,11 @@ package main
 import (
 	"abobus/gopkg/so_util"
 	"fmt"
+	"log"
 	"os"
 )
+
+const DefaultSockAddr = "/tmp/vpnchains.socket"
 
 func errorMsg(path string) string {
 	return "Usage: " + path +
@@ -23,5 +26,14 @@ func main() {
 	commandArgs := args[3:]
 
 	cmd := so_util.CreateCommandWithInjectedLibrary(libPath, commandPath, commandArgs)
-	cmd.Wait()
+
+	err := cmd.Run()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
