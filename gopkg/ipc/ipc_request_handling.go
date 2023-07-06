@@ -7,17 +7,17 @@ import (
 )
 
 func processWrite(request *WriteRequest) (*WriteResponse, error) {
-	log.Fatalln(request)
+	log.Println(request)
 	return nil, nil
 }
 
 func processRead(request *ReadRequest) (*ReadResponse, error) {
-	log.Fatalln(request)
+	log.Println(request)
 	return nil, nil
 }
 
 func processConnect(request *ConnectRequest) (*ConnectResponse, error) {
-	log.Fatalln(request)
+	log.Println(request)
 	return nil, nil
 }
 
@@ -28,6 +28,8 @@ func HandleRequest(request []byte) ([]byte, error) {
 	}
 	call := bson.Raw(request).Lookup("call").StringValue()
 
+	var response interface{}
+
 	switch call {
 	case "write":
 		var writeRequest WriteRequest
@@ -36,11 +38,7 @@ func HandleRequest(request []byte) ([]byte, error) {
 			return nil, err
 		}
 
-		writeResponse, err := processWrite(&writeRequest)
-		if err != nil {
-			return nil, err
-		}
-		return bson.Marshal(writeResponse)
+		response, err = processWrite(&writeRequest)
 	case "read":
 		var readRequest ReadRequest
 		err = bson.Unmarshal(request, &readRequest)
@@ -48,11 +46,7 @@ func HandleRequest(request []byte) ([]byte, error) {
 			return nil, err
 		}
 
-		readResponse, err := processRead(&readRequest)
-		if err != nil {
-			return nil, err
-		}
-		return bson.Marshal(readResponse)
+		response, err = processRead(&readRequest)
 	case "connect":
 		var connectRequest ConnectRequest
 		err = bson.Unmarshal(request, &connectRequest)
@@ -60,14 +54,15 @@ func HandleRequest(request []byte) ([]byte, error) {
 			return nil, err
 		}
 
-		connectResponse, err := processConnect(&connectRequest)
-		if err != nil {
-			return nil, err
-		}
-		return bson.Marshal(connectResponse)
+		response, err = processConnect(&connectRequest)
 	default:
 		return nil, errors.New("wrong format or unknown call")
-	} // TODO если кастануть к interface{} сломается???? а то выглядит очень очень плохо
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return bson.Marshal(response)
 }
 
 func main() {
