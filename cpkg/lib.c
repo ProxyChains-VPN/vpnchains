@@ -1,26 +1,44 @@
-#include <fcntl.h>
+include <fcntl.h>
 #include <dlfcn.h>
 #include "lib.h"
 
-Func get_real_func(char* func_name){
+void* get_hDl(){
     char* lib_name = "unistd.h";
-    void *hDl = dlopen(lib_name, RTLD_LAZY);
-    Func real_func = (Func)dlsym(hDl, func_name);
+    return dlopen(lib_name, RTLD_LAZY);
+}
 
+Write_callback get_real_write(){
+    void *hDl = get_hDl();
+    Write_callback real_write = (Write_callback)dlsym(hDl, write_name);
     dlclose(hDl);
+    return real_write;
+}
 
-    return real_func;
+Read_callback get_real_read(){
+    void *hDl = get_hDl();
+    Read_callback real_read = (Read_callback)dlsym(hDl, read_name);
+    dlclose(hDl);
+    return real_read;
+}
+
+Close_callback get_real_close(){
+    void *hDl = get_hDl();
+    Close_callback real_close = (Close_callback)dlsym(hDl, close_name);
+    dlclose(hDl);
+    return real_close;
 }
 
 int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
     int tmp_sock_fd;
 
-    Func real_write = get_real_func(write_name);
-    Func real_close = get_real_func(close_name);
+    void *hDl = get_hDl();
+
+    Write_callback real_write = get_real_write();
+    Close_callback real_close =get_real_close();
 
     tmp_sock_fd = open("/tmp/vpnchains.socket", O_RDWR);
     real_write(tmp_sock_fd, &sock_fd, sizeof(int));
-    real_write(tmp_sock_fd, addr, addrlen);
+    real_write(tmp_sock_fd, (void*)addr, addrlen);
     real_close(tmp_sock_fd);
 
     return 0;
@@ -30,9 +48,9 @@ size_t read(int sock_fd, void *buf, size_t count){
     int tmp_sock_fd;
     int n;
 
-    Func real_write = get_real_func(write_name);
-    Func real_read = get_real_func(read_name);
-    Func real_close = get_real_func(close_name);
+    Read_callback real_read = get_real_read();
+    Write_callback real_write = get_real_write();
+    Close_callback real_close = get_real_close();
 
     tmp_sock_fd = open("/tmp/vpnchains.socket", O_RDWR);
     real_write(tmp_sock_fd, &sock_fd, sizeof(int));
@@ -45,8 +63,8 @@ size_t read(int sock_fd, void *buf, size_t count){
 int write(int sock_fd , void *buf, size_t count){
     int tmp_sock_fd;
 
-    Func real_write = get_real_func(write_name);
-    Func real_close = get_real_func(close_name);
+    Write_callback real_write = get_real_write();
+    Close_callback real_close =get_real_close();
 
     tmp_sock_fd = open("/tmp/vpnchains.socket", O_RDWR);
     real_write(tmp_sock_fd, &sock_fd, sizeof(int));
