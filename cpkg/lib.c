@@ -38,17 +38,26 @@ int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
     Write_callback real_write = get_real_write();
     Close_callback real_close = get_real_close();
 
-    bson_t b = BSON_INITIALIZER;
-    BSON_APPEND_UTF8(&b, "Call", "connect");
-    BSON_APPEND_INT32(&b, "SockFd", sock_fd);
-    BSON_APPEND_INT32(&b, "Port", sin->sin_port);
-    BSON_APPEND_INT32(&b, "Ip", sin->sin_addr.s_addr);
+    bson_t bson_request = BSON_INITIALIZER;
+    BSON_APPEND_UTF8(&bson_request, "Call", "connect");
+    BSON_APPEND_INT32(&bson_request, "SockFd", sock_fd);
+    BSON_APPEND_INT32(&bson_request, "Port", sin->sin_port);
+    BSON_APPEND_INT32(&bson_request, "Ip", sin->sin_addr.s_addr);
 
     tmp_sock_fd = open("/tmp/vpnchains.socket", O_RDWR);
-    real_write(tmp_sock_fd, &b, b.len);
+    real_write(tmp_sock_fd, &bson_request, bson_request.len);
+
+    bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
+    const bson_t* bson_response = bson_reader_read(reader, NULL);
+    bson_iter_t iter;
+    bson_iter_t result_code;
+    bson_iter_init(&iter, bson_response);
+    bson_iter_find_descendant(&iter, "ResultCode", &result_code);
+    int res = bson_iter_int32(&result_code);
+
     real_close(tmp_sock_fd);
 
-    return 0;
+    return res;
 }
 
 ssize_t read(int sock_fd, void *buf, size_t count){
@@ -59,14 +68,18 @@ ssize_t read(int sock_fd, void *buf, size_t count){
     Write_callback real_write = get_real_write();
     Close_callback real_close = get_real_close();
 
-    bson_t b = BSON_INITIALIZER;
-    BSON_APPEND_UTF8(&b, "Call", "read");
-    BSON_APPEND_INT32(&b, "Fd", sock_fd);
-    BSON_APPEND_INT32(&b, "BytesToRead", count);
+    bson_t bson_request = BSON_INITIALIZER;
+    BSON_APPEND_UTF8(&bson_request, "Call", "read");
+    BSON_APPEND_INT32(&bson_request, "Fd", sock_fd);
+    BSON_APPEND_INT32(&bson_request, "BytesToRead", count);
 
     tmp_sock_fd = open("/tmp/vpnchains.socket", O_RDWR);
-    real_write(tmp_sock_fd, &b, b.len);
-    //n = real_read(tmp_sock_fd, buf, count);
+    real_write(tmp_sock_fd, &bson_request, bson_request.len);
+
+    bson_reader_t* reader = bson_reader_new_from_fd (tmp_sock_fd, false);
+    const bson_t* bson_response = bson_reader_read(reader, NULL);
+    /*read*/
+
     real_close(tmp_sock_fd);
 
     return n;
@@ -76,17 +89,26 @@ ssize_t write(int sock_fd, const void *buf, size_t count){
     int tmp_sock_fd;
 
     Write_callback real_write = get_real_write();
-    Close_callback real_close =get_real_close();
+    Close_callback real_close = get_real_close();
 
-    bson_t b = BSON_INITIALIZER;
-    BSON_APPEND_UTF8(&b, "Call", "write");
-    BSON_APPEND_INT32(&b, "Fd", sock_fd);
-    BSON_APPEND_BINARY(&b, "Buffer", BSON_SUBTYPE_BINARY, buf, count);
-    BSON_APPEND_INT32(&b, "BytesToWrite", count);
+    bson_t bson_request = BSON_INITIALIZER;
+    BSON_APPEND_UTF8(&bson_request, "Call", "write");
+    BSON_APPEND_INT32(&bson_request, "Fd", sock_fd);
+    BSON_APPEND_BINARY(&bson_request, "Buffer", BSON_SUBTYPE_BINARY, buf, count);
+    BSON_APPEND_INT32(&bson_request, "BytesToWrite", count);
 
     tmp_sock_fd = open("/tmp/vpnchains.socket", O_RDWR);
-    real_write(tmp_sock_fd, &b, b.len);
+    real_write(tmp_sock_fd, &bson_request, bson_request.len);
+
+    bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
+    const bson_t* bson_response = bson_reader_read(reader, NULL);
+    bson_iter_t iter;
+    bson_iter_t bytes_written;
+    bson_iter_init(&iter, bson_response);
+    bson_iter_find_descendant(&iter, "BytesWritten", &bytes_written);
+    ssize_t res = bson_iter_int32(&bytes_written);
+
     real_close(tmp_sock_fd);
 
-    return 0;
+    return res;
 }
