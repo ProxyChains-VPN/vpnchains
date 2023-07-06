@@ -1,7 +1,31 @@
 package so_util
 
-type ConnectArgs struct {
-	Sockfd   int32
-	SaFamily uint16
-	SaData   string
+type ConnectRequest struct {
+	SockFd int32
+	Port   uint16
+	Ip     uint32
+}
+
+type ConnectResponse struct {
+	ResultCode int32 // 0 или -1
+}
+
+type ReadRequest struct {
+	Fd          int32
+	BytesToRead int32
+}
+
+type ReadResponse struct {
+	Buffer    string
+	BytesRead int32
+}
+
+type WriteRequest struct {
+	Fd           int32
+	Buffer       []byte
+	BytesToWrite int32
+}
+
+type WriteResponse struct {
+	BytesWritten int32
 }
