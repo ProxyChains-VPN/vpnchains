@@ -1,10 +1,7 @@
 package main
 
 import (
-	"abobus/gopkg/ipc"
 	"fmt"
-	"go.mongodb.org/mongo-driver/bson"
-	"log"
 	"os"
 )
 
@@ -37,17 +34,21 @@ func main() {
 	//if err != nil {
 	//	log.Fatalln(err)
 	//}
-	doc, _ := bson.Marshal(
-		bson.D{
-			{"call", "write"},
-			{"Fd", 6},
-			{"Buffer", []byte("anime")},
-			{"BytesToWrite", 10050},
-		},
-	)
-
-	_, err := ipc.HandleRequest(doc)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	//doc, _ := bson.Marshal(
+	//	bson.D{
+	//		{"call", "write"},
+	//		{"Fd", 6},
+	//		{"Buffer", []byte("anime")},
+	//		{"BytesToWrite", 10050},
+	//	},
+	//)
+	//
+	//val, err := ipc.HandleRequest(doc)
+	//if err != nil {
+	//	log.Fatalln(err)
+	//} else {
+	//	var res ipc.WriteRequest
+	//	bson.Unmarshal(val, &res)
+	//	log.Fatalln(res)
+	//}
 }
