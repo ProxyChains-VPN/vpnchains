@@ -1,11 +1,22 @@
 GO_CC=go build
 C_CC=gcc
-OUTPUT_DIR=build
+
+ifeq ($(VPNCHAINS_LIB_NAME),)
+VPNCHAINS_LIB_NAME := vpnchains_inject.so
+endif
+
+ifeq ($(VPNCHAINS_EXECUTABLE_NAME),)
+VPNCHAINS_EXECUTABLE_NAME := vpnchains
+endif
+
+ifeq ($(VPNCHAINS_OUTPUT_DIR),)
+VPNCHAINS_OUTPUT_DIR := build
+endif
 
 
-all: main lib
+all: app lib
 
-main:
-	$(GO_CC) -o $(OUTPUT_DIR)/app gopkg/main/main.go
-lib :
-	$(C_CC) -O2 -shared -fPIC -fvisibility=hidden -o $(OUTPUT_DIR)/string.so cpkg/lib.c
+app:
+	$(GO_CC) -o $(OUTPUT_DIR)/$(VPNCHAINS_EXECUTABLE_NAME) gopkg/main/main.go
+lib:
+	$(C_CC) -O2 -shared -fPIC -fvisibility=hidden -o $(OUTPUT_DIR)/$(VPNCHAINS_LIB_NAME) cpkg/lib.c
