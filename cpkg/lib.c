@@ -27,6 +27,13 @@ Read_callback get_real_read(){
     return real_read;
 }
 
+Connect_callback get_real_connect(){
+    void *hDl = get_hDl();
+    Connect_callback real_connect = (Connect_callback)dlsym(hDl, "connect");
+    dlclose(hDl);
+    return resl_connect;
+}
+
 Close_callback get_real_close(){
     void *hDl = get_hDl();
     Close_callback real_close = (Close_callback)dlsym(hDl, "close");
@@ -41,15 +48,11 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
     name.sun_family = AF_UNIX;
     strcpy(name.sun_path, "/tmp/vpnchains.socket");
 
-    void *hDl = dlopen("sys/socket.h", RTLD_LAZY);
-    Connect_callback real_connect = (Connect_callback)dlsym(hDl, "connect");
-    dlclose(hDl);
-
-    real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
-
-
+    Connect_callback real_connect = get_real_connect();
     Write_callback real_write = get_real_write();
     Close_callback real_close = get_real_close();
+
+    real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
 
     real_write(2, "aboba\n", 7);
 
@@ -95,7 +98,9 @@ SO_VISIBLE ssize_t read(int sock_fd, void *buf, size_t count){
     memset(&name, 0, sizeof(name));
     name.sun_family = AF_UNIX;
     strcpy(name.sun_path, "/tmp/vpnchains.socket");
-    connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
+
+    Connect_callback real_connect = get_real_connect();
+    real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
 
     bson_t bson_request = BSON_INITIALIZER;
     BSON_APPEND_UTF8(&bson_request, "Call", "read");
@@ -133,7 +138,9 @@ SO_VISIBLE ssize_t write(int sock_fd, const void *buf, size_t count){
     memset(&name, 0, sizeof(name));
     name.sun_family = AF_UNIX;
     strcpy(name.sun_path, "/tmp/vpnchains.socket");
-    connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
+
+    Connect_callback real_connect = get_real_connect();
+    real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
 
     bson_t bson_request = BSON_INITIALIZER;
     BSON_APPEND_UTF8(&bson_request, "Call", "write");
