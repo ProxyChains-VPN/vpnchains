@@ -31,5 +31,4 @@ int main() {
         tcperror("Connect()");
         exit(4);
     }
-jn
 }
