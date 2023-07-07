@@ -11,7 +11,7 @@ import (
 )
 
 const DefaultSockAddr = "/tmp/vpnchains.socket"
-const InjectedLibPath = "/usr/lib/vpnchains_inject.so"
+const InjectedLibPath = "/usr/lib/libvpnchains_inject.so"
 
 func errorMsg(path string) string {
 	return "Usage: " + path +

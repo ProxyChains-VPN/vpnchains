@@ -19,6 +19,6 @@ all: app lib
 app:
 	$(GO_CC) -o $(VPNCHAINS_OUTPUT_DIR)/$(VPNCHAINS_EXECUTABLE_NAME) gopkg/main/main.go
 lib:
-	$(C_CC) -shared -fPIC -fvisibility=hidden -o $(VPNCHAINS_OUTPUT_DIR)/$(VPNCHAINS_LIB_NAME) cpkg/lib.c
+	$(C_CC) -shared -fPIC -fvisibility=hidden -o $(VPNCHAINS_OUTPUT_DIR)/$(VPNCHAINS_LIB_NAME) cpkg/lib.c -lbson-1.0
 test:
-	$(C_CC) -lsys/socket -o $(VPNCHAINS_OUTPUT_DIR)/test test/example.c
+	$(C_CC) -o $(VPNCHAINS_OUTPUT_DIR)/test test/example.c -lvpnchains_inject
