@@ -20,16 +20,15 @@ func NewConnection(socketPath string) *IpcConnection {
 
 func (ipcConnection *IpcConnection) Listen(handler func(conn net.Conn)) error {
 	socket, err := net.Listen("unix", ipcConnection.SocketPath)
-
 	if err != nil {
+		log.Println("ladskf")
 		return err
 	}
 
 	for {
 		conn, err := socket.Accept()
-		log.Println("listening line e")
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		go func() {
@@ -37,6 +36,4 @@ func (ipcConnection *IpcConnection) Listen(handler func(conn net.Conn)) error {
 			conn.Close()
 		}()
 	}
-
-	return nil
 }
