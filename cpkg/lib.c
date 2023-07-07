@@ -38,9 +38,14 @@ int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
     memset(&name, 0, sizeof(name));
     name.sun_family = AF_UNIX;
     strcpy(name.sun_path, "/tmp/vpnchains.socket");
-    connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
 
-    void *hDl = get_hDl();
+    void *hDl = dlopen("sys/socket.h", RTLD_LAZY);
+    Connect_callback real_connect = (Connect_callback)dlsym(hDl, "connect");
+    dlclose(hDl);
+
+    real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
+
+
     Write_callback real_write = get_real_write();
     Close_callback real_close = get_real_close();
 
