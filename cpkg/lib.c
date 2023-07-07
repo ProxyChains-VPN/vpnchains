@@ -6,6 +6,7 @@
 #include "lib.h"
 #include <assert.h>
 
+#include <string.h>
 #include <gnu/lib-names.h>
 
 void* get_hDl(){
@@ -42,19 +43,26 @@ Close_callback get_real_close(){
 }
 
 SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
-    int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);  
+    Connect_callback real_connect = get_real_connect();
+    Write_callback real_write = get_real_write();
+    Close_callback real_close = get_real_close();
+
+    int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (tmp_sock_fd == -1) {
+        char* err = strerror(errno);
+        real_write(2, err, strlen(err));
+    }
+
     struct sockaddr_un name;
     memset(&name, 0, sizeof(name));
     name.sun_family = AF_UNIX;
     strcpy(name.sun_path, "/tmp/vpnchains.socket");
 
-    Connect_callback real_connect = get_real_connect();
-    Write_callback real_write = get_real_write();
-    Close_callback real_close = get_real_close();
-
-    real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
-
-    real_write(2, "aboba\n", 7);
+    int res = real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
+    if (res == -1) {
+        char* err = strerror(errno);
+        real_write(2, err, strlen(err));
+    }
 
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
     bson_t bson_request = BSON_INITIALIZER;
@@ -63,7 +71,14 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
     BSON_APPEND_INT32(&bson_request, "Port", ntohs(sin->sin_port));
     BSON_APPEND_INT32(&bson_request, "Ip", sin->sin_addr.s_addr);
     
-    real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
+    int bytes_written = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
+
+    if (bytes_written == -1) {
+        char* err = strerror(errno);
+        real_write(2, err, strlen(err));
+    } else {
+        real_write(2, "ok", 3);
+    }
 
     bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
@@ -71,14 +86,14 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
     bson_iter_t result_code;
     bson_iter_init(&iter, bson_response);
     bson_iter_find_descendant(&iter, "ResultCode", &result_code);
-    int res = bson_iter_int32(&result_code);
+    res = bson_iter_int32(&result_code);
 
     real_close(tmp_sock_fd);
 
     return res;
 }
 
-SO_VISIBLE ssize_t read(int sock_fd, void *buf, size_t count){
+ssize_t read(int sock_fd, void *buf, size_t count){
 
     Read_callback real_read = get_real_read();
 
@@ -91,9 +106,9 @@ SO_VISIBLE ssize_t read(int sock_fd, void *buf, size_t count){
     Write_callback real_write = get_real_write();
     Close_callback real_close = get_real_close();
 
-    real_write(2, "abobaREAD\n", 11);
+//    real_write(2, "abobaREAD\n", 11);
 
-    int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);  
+    int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     struct sockaddr_un name;
     memset(&name, 0, sizeof(name));
     name.sun_family = AF_UNIX;
@@ -107,7 +122,13 @@ SO_VISIBLE ssize_t read(int sock_fd, void *buf, size_t count){
     BSON_APPEND_INT32(&bson_request, "Fd", sock_fd);
     BSON_APPEND_INT32(&bson_request, "BytesToRead", count);
 
-    real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
+    int bytes_written = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
+    if (bytes_written == -1) {
+        char* err = strerror(errno);
+        real_write(2, err, strlen(err));
+    } else {
+        real_write(2, "ok", 3);
+    }
 
     bson_reader_t* reader = bson_reader_new_from_fd (tmp_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
@@ -125,7 +146,7 @@ SO_VISIBLE ssize_t read(int sock_fd, void *buf, size_t count){
     return n;
 }
 
-SO_VISIBLE ssize_t write(int sock_fd, const void *buf, size_t count){
+ssize_t write(int sock_fd, const void *buf, size_t count){
     Write_callback real_write = get_real_write();
     real_write(2, "abobaWRIT\n", 11);
 
@@ -135,7 +156,7 @@ SO_VISIBLE ssize_t write(int sock_fd, const void *buf, size_t count){
         return real_write(sock_fd, buf, count);
     }
 
-    int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);  
+    int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     struct sockaddr_un name;
     memset(&name, 0, sizeof(name));
     name.sun_family = AF_UNIX;

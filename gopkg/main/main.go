@@ -68,9 +68,13 @@ func main() {
 	cmd := ipc.CreateCommandWithInjectedLibrary(InjectedLibPath, commandPath, commandArgs)
 
 	go handleIpc()
-	sigintHandlerGoroutine()
 
 	err := cmd.Start()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	err = cmd.Wait()
 	if err != nil {
 		log.Fatalln(err)
 	}
