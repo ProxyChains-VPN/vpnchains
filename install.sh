@@ -12,11 +12,17 @@ echo "Checking requirements"
 if [ ! -d "$LIBBSON_INCLUDE_DIR" ]; then
     echo "$LIBBSON_INCLUDE_DIR is not exist; respectively, libbson is not installed globally."
     echo "One is supplied in mongo-c-driver package (package name may be varied)"
+    echo "Exiting with code 1..."
     exit 1
 fi
 
 echo "Compiling lib"
 make lib -B
+
+if [ ! $? -eq 0 ] ; then
+    echo "Build unsuccessful! Exiting with code 1..."
+    exit 1
+fi
 
 if [ -f "/usr/lib/$VPNCHAINS_LIB_NAME" ]; then
     read -r -p "$VPNCHAINS_LIB_NAME already exist! Replace? [y/N] " response
