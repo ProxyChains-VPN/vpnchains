@@ -17,6 +17,6 @@ endif
 all: app lib
 
 app:
-	$(GO_CC) -o $(OUTPUT_DIR)/$(VPNCHAINS_EXECUTABLE_NAME) gopkg/main/main.go
+	$(GO_CC) -o $(VPNCHAINS_OUTPUT_DIR)/$(VPNCHAINS_EXECUTABLE_NAME) gopkg/main/main.go
 lib:
-	$(C_CC) -O2 -shared -fPIC -fvisibility=hidden -o $(OUTPUT_DIR)/$(VPNCHAINS_LIB_NAME) cpkg/lib.c
+	$(C_CC) -O2 -shared -fPIC -fvisibility=hidden -o $(VPNCHAINS_OUTPUT_DIR)/$(VPNCHAINS_LIB_NAME) cpkg/lib.c
