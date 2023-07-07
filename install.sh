@@ -35,6 +35,9 @@ if [ -f "/usr/lib/$VPNCHAINS_LIB_NAME" ]; then
             echo "Skipping moving $VPNCHAINS_LIB_NAME to /usr/lib; be sure you have a correct library installed"
             ;;
     esac
+else
+    echo "Moving $VPNCHAINS_LIB_NAME to /usr/lib; need sudo"
+    sudo mv $VPNCHAINS_OUTPUT_DIR/$VPNCHAINS_LIB_NAME /usr/lib/$VPNCHAINS_LIB_NAME
 fi
 
 echo "Compiling app"
