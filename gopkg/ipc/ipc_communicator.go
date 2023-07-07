@@ -14,7 +14,7 @@ type IpcCommunicator interface {
 	Listen() error
 }
 
-func New(socketPath string) *IpcConnection {
+func NewConnection(socketPath string) *IpcConnection {
 	return &IpcConnection{SocketPath: socketPath}
 }
 
