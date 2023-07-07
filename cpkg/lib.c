@@ -34,7 +34,7 @@ Close_callback get_real_close(){
     return real_close;
 }
 
-int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
+SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
     int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);  
     struct sockaddr_un name;
     memset(&name, 0, sizeof(name));
@@ -75,7 +75,7 @@ int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
     return res;
 }
 
-ssize_t read(int sock_fd, void *buf, size_t count){
+SO_VISIBLE ssize_t read(int sock_fd, void *buf, size_t count){
 
     Read_callback real_read = get_real_read();
 
@@ -87,6 +87,8 @@ ssize_t read(int sock_fd, void *buf, size_t count){
 
     Write_callback real_write = get_real_write();
     Close_callback real_close = get_real_close();
+
+    real_write(2, "abobaREAD\n", 11);
 
     int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);  
     struct sockaddr_un name;
@@ -116,9 +118,9 @@ ssize_t read(int sock_fd, void *buf, size_t count){
     return n;
 }
 
-ssize_t write(int sock_fd, const void *buf, size_t count){
-
+SO_VISIBLE ssize_t write(int sock_fd, const void *buf, size_t count){
     Write_callback real_write = get_real_write();
+    real_write(2, "abobaWRIT\n", 11);
 
     struct stat statbuf;
     fstat(sock_fd, &statbuf);

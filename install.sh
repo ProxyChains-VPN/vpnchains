@@ -1,6 +1,6 @@
 #!/bin/env sh
 
-export VPNCHAINS_LIB_NAME=vpnchains_inject.so
+export VPNCHAINS_LIB_NAME=libvpnchains_inject.so
 export VPNCHAINS_EXECUTABLE_NAME=vpnchains
 export VPNCHAINS_OUTPUT_DIR=build
 
@@ -29,7 +29,7 @@ if [ -f "/usr/lib/$VPNCHAINS_LIB_NAME" ]; then
     case "$response" in
         [yY][eE][sS]|[yY])
             echo "Moving $VPNCHAINS_LIB_NAME to /usr/lib; need sudo"
-            sudo mv $VPNCHAINS_OUTPUT_DIR/$VPNCHAINS_LIB_NAME /usr/lib/$VPNCHAINS_LIB_NAME
+            sudo cp $VPNCHAINS_OUTPUT_DIR/$VPNCHAINS_LIB_NAME /usr/lib/$VPNCHAINS_LIB_NAME
             ;;
         *)
             echo "Skipping moving $VPNCHAINS_LIB_NAME to /usr/lib; be sure you have a correct library installed"
