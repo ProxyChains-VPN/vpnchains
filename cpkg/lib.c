@@ -94,11 +94,15 @@ ssize_t read(int sock_fd, void *buf, size_t count){
 
     bson_reader_t* reader = bson_reader_new_from_fd (tmp_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
+    bson_iter_t bytes_read;
+    bson_iter_init(&iter, bson_response);
+    bson_iter_find_descendant(&iter, "BytesRead", &bytes_read);
+    int n = bson_iter_int32(&bytes_read);
     /*read*/
 
     real_close(tmp_sock_fd);
 
-    return 0;
+    return n;
 }
 
 ssize_t write(int sock_fd, const void *buf, size_t count){
@@ -124,7 +128,6 @@ ssize_t write(int sock_fd, const void *buf, size_t count){
     BSON_APPEND_BINARY(&bson_request, "Buffer", BSON_SUBTYPE_BINARY, buf, count);
     BSON_APPEND_INT32(&bson_request, "BytesToWrite", count);
 
-    tmp_sock_fd = open("/tmp/vpnchains.socket", O_RDWR);
     real_write(tmp_sock_fd, &bson_request, bson_request.len);
 
     bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);

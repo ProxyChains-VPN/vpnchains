@@ -1,10 +1,10 @@
 #pragma once
 #include <inttypes.h>
 #include <sys/socket.h>
-#include <bson/bson.h>
+#include <libbson-1.0/bson/bson.h>
 
 typedef size_t (*Read_callback)(int, void*, size_t);
-typedef int (*Write_callback)(int, void*, size_t);
+typedef int (*Write_callback)(int, const void*, size_t);
 typedef int (*Close_callback)(int);
 
 void* get_hDl();
