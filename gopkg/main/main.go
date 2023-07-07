@@ -19,6 +19,8 @@ func errorMsg(path string) string {
 }
 
 func handleIpc() {
+	_ = os.Remove(DefaultSockAddr)
+
 	conn := ipc.NewConnection(DefaultSockAddr)
 	handler := func(conn net.Conn) {
 		var requestBuf []byte
