@@ -12,3 +12,5 @@ void* get_hDl();
 int connect(int, const struct sockaddr*, socklen_t);
 ssize_t read(int, void*, size_t);
 ssize_t write(int, const void*, size_t);
+
+#define SO_VISIBLE __attribute__((visibility("default")))

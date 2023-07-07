@@ -42,5 +42,17 @@ fi
 
 echo "Compiling app"
 make app -B
+
+if [ ! $? -eq 0 ] ; then
+    echo "Build unsuccessful! Exiting with code 1..."
+    exit 1
+fi
+
 echo "Executable compiled and is located at $VPNCHAINS_OUTPUT_DIR/$VPNCHAINS_EXECUTABLE_NAME"
 echo "Done!"
+
+
+# TMP
+echo "Compiling test"
+make test -B
+echo "Truly done"

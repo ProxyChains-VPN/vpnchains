@@ -1,7 +1,5 @@
-#include <manifest.h>
-#include <bsdtypes.h>
-#include <in.h>
-#include <socket.h>
+#include <stdlib.h>
+#include <sys/socket.h>
 #include <netdb.h>
 #include <stdio.h>
 
@@ -13,8 +11,8 @@ int main() {
     struct sockaddr_in server; /* server address                      */
     int s;                     /* client socket                       */
 
-    hostnm = gethostbyname("lib.ru")
-    port = 80
+    hostnm = gethostbyname("lib.ru");
+    port = 80;
 
     server.sin_family      = AF_INET;
     server.sin_port        = htons(port);
@@ -22,13 +20,13 @@ int main() {
 
     if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        tcperror("Socket()");
+        perror("Socket()");
         exit(3);
     }
 
     if (connect(s, (struct sockaddr *)&server, sizeof(server)) < 0)
     {
-        tcperror("Connect()");
+        perror("Connect()");
         exit(4);
     }
 }

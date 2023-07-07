@@ -4,9 +4,12 @@
 #include <sys/stat.h>
 #include <sys/un.h>
 #include "lib.h"
+#include <assert.h>
+
+#include <gnu/lib-names.h>
 
 void* get_hDl(){
-    char* lib_name = "unistd.h";
+    char* lib_name = LIBC_SO;
     return dlopen(lib_name, RTLD_LAZY);
 }
 
@@ -32,7 +35,6 @@ Close_callback get_real_close(){
 }
 
 int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
-
     int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);  
     struct sockaddr_un name;
     memset(&name, 0, sizeof(name));
@@ -48,6 +50,8 @@ int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
 
     Write_callback real_write = get_real_write();
     Close_callback real_close = get_real_close();
+
+    real_write(2, "aboba\n", 7);
 
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
     bson_t bson_request = BSON_INITIALIZER;
