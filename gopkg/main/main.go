@@ -1,10 +1,9 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
+	"abobus/gopkg/ipc"
+	"log"
+	"net"
 )
 
 const DefaultSockAddr = "/tmp/vpnchains.socket"
@@ -15,11 +14,34 @@ func errorMsg(path string) string {
 }
 
 func main() {
-	args := os.Args
-	if len(args) < 3 {
-		fmt.Println(errorMsg(args[0]))
-		os.Exit(0)
+	conn := ipc.NewConnection(DefaultSockAddr)
+	fun := func(conn net.Conn) {
+		var requestBuf []byte
+		_, err := conn.Read(requestBuf)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		responseBuf, err := ipc.HandleRequest(requestBuf)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		_, err = conn.Write(responseBuf)
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}
+	err := conn.Listen(fun)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	//args := os.Args
+	//if len(args) < 3 {
+	//	fmt.Println(errorMsg(args[0]))
+	//	os.Exit(0)
+	//}
 
 	//libPath := args[1]
 	//commandPath := args[2]
@@ -55,11 +77,11 @@ func main() {
 	//	log.Fatalln(res)
 	//}
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		os.Remove(DefaultSockAddr)
-		os.Exit(1)
-	}()
+	//c := make(chan os.Signal, 1)
+	//signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	//go func() {
+	//	<-c
+	//	os.Remove(DefaultSockAddr)
+	//	os.Exit(1)
+	//}()
 }
