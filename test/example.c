@@ -2,6 +2,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <unistd.h>
 
 
 int main() {
@@ -29,5 +30,6 @@ int main() {
 //        perror("Connect()");
 //        exit(4);
 //    }
-    write(1, "sdf\n", 5);
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    write(sockfd, "sdf\n", 5);
 }

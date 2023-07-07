@@ -27,6 +27,7 @@ func (ipcConnection *IpcConnection) Listen(handler func(conn net.Conn)) error {
 
 	for {
 		conn, err := socket.Accept()
+		log.Println("listening line e")
 		if err != nil {
 			log.Fatal(err)
 		}

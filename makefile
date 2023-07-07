@@ -21,4 +21,4 @@ app:
 lib:
 	$(C_CC) -shared -fPIC -fvisibility=hidden -o $(VPNCHAINS_OUTPUT_DIR)/$(VPNCHAINS_LIB_NAME) cpkg/lib.c -lbson-1.0
 test:
-	$(C_CC) -o $(VPNCHAINS_OUTPUT_DIR)/test test/example.c -lvpnchains_inject
+	$(C_CC) -o $(VPNCHAINS_OUTPUT_DIR)/test test/example.c
