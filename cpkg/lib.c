@@ -31,7 +31,7 @@ Connect_callback get_real_connect(){
     void *hDl = get_hDl();
     Connect_callback real_connect = (Connect_callback)dlsym(hDl, "connect");
     dlclose(hDl);
-    return resl_connect;
+    return real_connect;
 }
 
 Close_callback get_real_close(){
@@ -113,10 +113,12 @@ SO_VISIBLE ssize_t read(int sock_fd, void *buf, size_t count){
     const bson_t* bson_response = bson_reader_read(reader, NULL);
     bson_iter_t iter;
     bson_iter_t bytes_read;
+    bson_iter_t buffer;
     bson_iter_init(&iter, bson_response);
     bson_iter_find_descendant(&iter, "BytesRead", &bytes_read);
+    bson_iter_find_descendant(&iter, "Buffer", &buffer);
     int n = bson_iter_int32(&bytes_read);
-    /*read*/
+    bson_iter_binary(&buffer, BSON_SUBTYPE_BINARY, &n, (const uint8_t**)&buf);
 
     real_close(tmp_sock_fd);
 
