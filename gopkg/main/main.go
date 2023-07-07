@@ -24,7 +24,9 @@ func handleIpc() {
 	conn := ipc.NewConnection(DefaultSockAddr)
 	handler := func(conn net.Conn) {
 		var requestBuf []byte
-		_, err := conn.Read(requestBuf)
+		n, err := conn.Read(requestBuf)
+		log.Println("bytes read", n) // FIX ME КОСЯК ТУТ
+
 		if err != nil {
 			log.Fatalln(err)
 		}

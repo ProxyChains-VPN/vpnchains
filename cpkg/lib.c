@@ -71,13 +71,15 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
     BSON_APPEND_INT32(&bson_request, "Port", ntohs(sin->sin_port));
     BSON_APPEND_INT32(&bson_request, "Ip", sin->sin_addr.s_addr);
     
-    int bytes_written = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
+//    int bytes_written = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
+    int bytes_written = real_write(tmp_sock_fd, "amogus", 7);
+
 
     if (bytes_written == -1) {
         char* err = strerror(errno);
         real_write(2, err, strlen(err));
     } else {
-        real_write(2, "ok", 3);
+        real_write(2, "libc line 80\n", 14);
     }
 
     bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);

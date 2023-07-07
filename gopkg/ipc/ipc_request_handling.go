@@ -22,6 +22,7 @@ func processConnect(request *ConnectRequest) (*ConnectResponse, error) {
 }
 
 func HandleRequest(request []byte) ([]byte, error) {
+	log.Println(request)
 	err := bson.Raw(request).Validate()
 	if err != nil {
 		return nil, err
