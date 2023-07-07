@@ -1,6 +1,7 @@
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <netinet/in.h>
+#include <sys/stat.h>
 #include "lib.h"
 
 void* get_hDl(){
@@ -30,21 +31,25 @@ Close_callback get_real_close(){
 }
 
 int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
-    int tmp_sock_fd;
-    struct sockaddr_in* sin = (struct sockaddr_in*)addr;
+
+    int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);  
+    struct sockaddr_un name;
+    memset(&name, 0, sizeof(name));
+    name.sun_family = AF_UNIX;
+    strcpy(name.sun_path, "/tmp/vpnchains.socket");
+    connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
 
     void *hDl = get_hDl();
-
     Write_callback real_write = get_real_write();
     Close_callback real_close = get_real_close();
 
+    struct sockaddr_in* sin = (struct sockaddr_in*)addr;
     bson_t bson_request = BSON_INITIALIZER;
     BSON_APPEND_UTF8(&bson_request, "Call", "connect");
     BSON_APPEND_INT32(&bson_request, "SockFd", sock_fd);
-    BSON_APPEND_INT32(&bson_request, "Port", sin->sin_port);
+    BSON_APPEND_INT32(&bson_request, "Port", ntohs(sin->sin_port));
     BSON_APPEND_INT32(&bson_request, "Ip", sin->sin_addr.s_addr);
-
-    tmp_sock_fd = open("/tmp/vpnchains.socket", O_RDWR);
+    
     real_write(tmp_sock_fd, &bson_request, bson_request.len);
 
     bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
@@ -61,19 +66,30 @@ int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
 }
 
 ssize_t read(int sock_fd, void *buf, size_t count){
-    int tmp_sock_fd;
-    int n;
 
     Read_callback real_read = get_real_read();
+
+    struct stat statbuf;
+    fstat(sock_fd, &statbuf);
+    if(!S_ISSOCK(statbuf.st_mode)){
+        return real_read(sock_fd, buf, count);
+    }
+
     Write_callback real_write = get_real_write();
     Close_callback real_close = get_real_close();
+
+    int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);  
+    struct sockaddr_un name;
+    memset(&name, 0, sizeof(name));
+    name.sun_family = AF_UNIX;
+    strcpy(name.sun_path, "/tmp/vpnchains.socket");
+    connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
 
     bson_t bson_request = BSON_INITIALIZER;
     BSON_APPEND_UTF8(&bson_request, "Call", "read");
     BSON_APPEND_INT32(&bson_request, "Fd", sock_fd);
     BSON_APPEND_INT32(&bson_request, "BytesToRead", count);
 
-    tmp_sock_fd = open("/tmp/vpnchains.socket", O_RDWR);
     real_write(tmp_sock_fd, &bson_request, bson_request.len);
 
     bson_reader_t* reader = bson_reader_new_from_fd (tmp_sock_fd, false);
@@ -82,14 +98,25 @@ ssize_t read(int sock_fd, void *buf, size_t count){
 
     real_close(tmp_sock_fd);
 
-    return n;
+    return 0;
 }
 
 ssize_t write(int sock_fd, const void *buf, size_t count){
-    int tmp_sock_fd;
 
     Write_callback real_write = get_real_write();
-    Close_callback real_close = get_real_close();
+
+    struct stat statbuf;
+    fstat(sock_fd, &statbuf);
+    if(!S_ISSOCK(statbuf.st_mode)){
+        return real_write(sock_fd, buf, count);
+    }
+
+    int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);  
+    struct sockaddr_un name;
+    memset(&name, 0, sizeof(name));
+    name.sun_family = AF_UNIX;
+    strcpy(name.sun_path, "/tmp/vpnchains.socket");
+    connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
 
     bson_t bson_request = BSON_INITIALIZER;
     BSON_APPEND_UTF8(&bson_request, "Call", "write");
@@ -108,6 +135,7 @@ ssize_t write(int sock_fd, const void *buf, size_t count){
     bson_iter_find_descendant(&iter, "BytesWritten", &bytes_written);
     ssize_t res = bson_iter_int32(&bytes_written);
 
+    Close_callback real_close = get_real_close();
     real_close(tmp_sock_fd);
 
     return res;
