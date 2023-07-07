@@ -50,7 +50,7 @@ int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
     BSON_APPEND_INT32(&bson_request, "Port", ntohs(sin->sin_port));
     BSON_APPEND_INT32(&bson_request, "Ip", sin->sin_addr.s_addr);
     
-    real_write(tmp_sock_fd, &bson_request, bson_request.len);
+    real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
 
     bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
@@ -90,7 +90,7 @@ ssize_t read(int sock_fd, void *buf, size_t count){
     BSON_APPEND_INT32(&bson_request, "Fd", sock_fd);
     BSON_APPEND_INT32(&bson_request, "BytesToRead", count);
 
-    real_write(tmp_sock_fd, &bson_request, bson_request.len);
+    real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
 
     bson_reader_t* reader = bson_reader_new_from_fd (tmp_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
@@ -128,7 +128,7 @@ ssize_t write(int sock_fd, const void *buf, size_t count){
     BSON_APPEND_BINARY(&bson_request, "Buffer", BSON_SUBTYPE_BINARY, buf, count);
     BSON_APPEND_INT32(&bson_request, "BytesToWrite", count);
 
-    real_write(tmp_sock_fd, &bson_request, bson_request.len);
+    real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
 
     bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
