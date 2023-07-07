@@ -95,6 +95,7 @@ ssize_t read(int sock_fd, void *buf, size_t count){
 
     bson_reader_t* reader = bson_reader_new_from_fd (tmp_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
+    bson_iter_t iter;
     bson_iter_t bytes_read;
     bson_iter_init(&iter, bson_response);
     bson_iter_find_descendant(&iter, "BytesRead", &bytes_read);
