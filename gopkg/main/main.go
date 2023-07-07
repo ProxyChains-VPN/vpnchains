@@ -2,20 +2,25 @@ package main
 
 import (
 	"abobus/gopkg/ipc"
+	"fmt"
 	"log"
 	"net"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 const DefaultSockAddr = "/tmp/vpnchains.socket"
+const InjectedLibPath = "/usr/lib/vpnchains_inject.so"
 
 func errorMsg(path string) string {
 	return "Usage: " + path +
-		" <lib> <command> [command args...]"
+		" <command> [command args...]"
 }
 
-func main() {
+func handleIpc() {
 	conn := ipc.NewConnection(DefaultSockAddr)
-	fun := func(conn net.Conn) {
+	handler := func(conn net.Conn) {
 		var requestBuf []byte
 		_, err := conn.Read(requestBuf)
 		if err != nil {
@@ -32,56 +37,39 @@ func main() {
 			log.Fatalln(err)
 		}
 	}
-	err := conn.Listen(fun)
+	err := conn.Listen(handler)
 	if err != nil {
 		log.Fatalln(err)
 	}
+}
 
-	//args := os.Args
-	//if len(args) < 3 {
-	//	fmt.Println(errorMsg(args[0]))
-	//	os.Exit(0)
-	//}
+func sigintHandlerGoroutine() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		os.Remove(DefaultSockAddr)
+		os.Exit(1)
+	}()
+}
 
-	//libPath := args[1]
-	//commandPath := args[2]
-	//commandArgs := args[3:]
+func main() {
+	args := os.Args
+	if len(args) < 2 {
+		fmt.Println(errorMsg(args[0]))
+		os.Exit(0)
+	}
 
-	//cmd := ipc.CreateCommandWithInjectedLibrary(libPath, commandPath, commandArgs)
+	commandPath := args[1]
+	commandArgs := args[2:]
 
-	//err := cmd.Run()
-	//if err != nil {
-	//	log.Fatalln(err)
-	//}
-	//
-	//err = cmd.Wait()
-	//if err != nil {
-	//	log.Fatalln(err)
-	//}
+	cmd := ipc.CreateCommandWithInjectedLibrary(InjectedLibPath, commandPath, commandArgs)
 
-	//doc, _ := bson.Marshal(
-	//	bson.D{
-	//		{"call", "write"},
-	//		{"Fd", 6},
-	//		{"Buffer", []byte("anime")},
-	//		{"BytesToWrite", 10050},
-	//	},
-	//)
-	//
-	//val, err := ipc.HandleRequest(doc)
-	//if err != nil {
-	//	log.Fatalln(err)
-	//} else {
-	//	var res ipc.WriteRequest
-	//	bson.Unmarshal(val, &res)
-	//	log.Fatalln(res)
-	//}
+	go handleIpc()
+	sigintHandlerGoroutine()
 
-	//c := make(chan os.Signal, 1)
-	//signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	//go func() {
-	//	<-c
-	//	os.Remove(DefaultSockAddr)
-	//	os.Exit(1)
-	//}()
+	err := cmd.Start()
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
