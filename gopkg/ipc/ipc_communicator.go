@@ -1,7 +1,6 @@
 package ipc
 
 import (
-	"log"
 	"net"
 )
 
@@ -21,7 +20,6 @@ func NewConnection(socketPath string) *IpcConnection {
 func (ipcConnection *IpcConnection) Listen(handler func(conn net.Conn)) error {
 	socket, err := net.Listen("unix", ipcConnection.SocketPath)
 	if err != nil {
-		log.Println("ladskf")
 		return err
 	}
 
