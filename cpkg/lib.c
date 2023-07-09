@@ -58,8 +58,8 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
     name.sun_family = AF_UNIX;
     strcpy(name.sun_path, "/tmp/vpnchains.socket");
 
-    int res = real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
-    if (res == -1) {
+    int tmp_sock_connect_res = real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
+    if (tmp_sock_connect_res == -1) {
         char* err = strerror(errno);
         real_write(2, err, strlen(err));
     }
@@ -71,24 +71,39 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
     BSON_APPEND_INT32(&bson_request, "Port", ntohs(sin->sin_port));
     BSON_APPEND_INT32(&bson_request, "Ip", sin->sin_addr.s_addr);
     
-//    int bytes_written = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
-    int bytes_written = real_write(tmp_sock_fd, "amogus", 7);
-
-
+    int bytes_written = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (bytes_written == -1) {
         char* err = strerror(errno);
         real_write(2, err, strlen(err));
-    } else {
-        real_write(2, "libc line 80\n", 14);
     }
 
     bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
+
+    int res = -1;
+
     bson_iter_t iter;
     bson_iter_t result_code;
     bson_iter_init(&iter, bson_response);
     bson_iter_find_descendant(&iter, "ResultCode", &result_code);
-    res = bson_iter_int32(&result_code);
+
+    if (BSON_ITER_HOLDS_INT32(&result_code)) {
+        res = bson_iter_int32(&result_code);
+    }
+    real_write(2, "and we a re here\n", 17);
+
+
+//    char buffer[100500];
+//    Read_callback real_read = get_real_read();
+
+//    int bytes_read = real_read(tmp_sock_fd, buffer, 100500);
+//    if (bytes_read == -1) {
+//        char* err = strerror(errno);
+//        real_write(2, err, strlen(err));
+//    }
+
+//    real_write(2, buffer, bytes_read);
+
 
     real_close(tmp_sock_fd);
 

@@ -12,7 +12,7 @@ int main() {
     struct sockaddr_in server; /* server address                      */
     int s;                     /* client socket                       */
 
-    hostnm = gethostbyname("lib.ru");
+    hostnm = gethostbyname("1.1.1.1");
     port = 80;
 
     server.sin_family      = AF_INET;
