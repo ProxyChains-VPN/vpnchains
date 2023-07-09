@@ -77,35 +77,50 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
         real_write(2, err, strlen(err));
     }
 
+    bson_destroy(&bson_request);
+
     bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
+
+    real_write(2, bson_get_data(bson_response), bson_request.len);
+
+    if (!bson_validate(
+        bson_response, 
+        BSON_VALIDATE_UTF8 
+        | BSON_VALIDATE_DOLLAR_KEYS 
+        | BSON_VALIDATE_DOT_KEYS 
+        | BSON_VALIDATE_UTF8_ALLOW_NULL 
+        | BSON_VALIDATE_EMPTY_KEYS,
+        NULL)) {
+            real_write(2, "abc\n", 5);
+            return -1;
+        } else {
+            real_write(2, "def\n", 5);
+        }
 
     int res = -1;
 
     bson_iter_t iter;
     bson_iter_t result_code;
-    bson_iter_init(&iter, bson_response);
-    bson_iter_find_descendant(&iter, "ResultCode", &result_code);
-
-    if (BSON_ITER_HOLDS_INT32(&result_code)) {
-        res = bson_iter_int32(&result_code);
+    if (!bson_iter_init(&iter, bson_response)) {
+        real_write(2, "noi\n", 5);
+        return -1;
     }
-    real_write(2, "and we a re here\n", 17);
+    //TODO норм сообщения об ошибках, норм протокол взаимодействия
+    if (!bson_iter_find_descendant(&iter, "resultcode", &result_code)) {
+        real_write(2, "yup\n", 5);
+        return -1;
+    }
 
-
-//    char buffer[100500];
-//    Read_callback real_read = get_real_read();
-
-//    int bytes_read = real_read(tmp_sock_fd, buffer, 100500);
-//    if (bytes_read == -1) {
-//        char* err = strerror(errno);
-//        real_write(2, err, strlen(err));
-//    }
-
-//    real_write(2, buffer, bytes_read);
-
+    if (BSON_ITER_HOLDS_INT32(&result_code)) { 
+        real_write(2, "kkk\n", 5);
+        res = bson_iter_int32(&result_code);
+        return -1;
+    }
+    // real_write(2, "and we a re here\n", 17);
 
     real_close(tmp_sock_fd);
+    bson_destroy(&bson_response);
 
     return res;
 }

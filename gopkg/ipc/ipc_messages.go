@@ -6,6 +6,7 @@ type ConnectRequest struct {
 	Ip     uint32
 }
 
+// TODO написать чтобы буковки сериализовывались с сохранением регистра
 type ConnectResponse struct {
 	ResultCode int32 // 0 или -1
 }
