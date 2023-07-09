@@ -18,16 +18,21 @@ func processRead(request *ReadRequest) (*ReadResponse, error) {
 
 func processConnect(request *ConnectRequest) (*ConnectResponse, error) {
 	log.Println(request)
-	return &ConnectResponse{0}, nil
+	return &ConnectResponse{-1}, nil
 }
 
 func HandleRequest(request []byte) ([]byte, error) {
-	log.Println(request)
 	err := bson.Raw(request).Validate()
 	if err != nil {
 		return nil, err
 	}
-	call := bson.Raw(request).Lookup("call").StringValue()
+
+	callValue := bson.Raw(request).Lookup("Call")
+	call, ok := callValue.StringValueOK()
+	if !ok {
+		log.Println(callValue.Value)
+		return nil, errors.New("call is not string")
+	}
 
 	var response interface{}
 
@@ -63,6 +68,7 @@ func HandleRequest(request []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return bson.Marshal(response)
 }
 

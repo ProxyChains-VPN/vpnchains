@@ -12,6 +12,7 @@ import (
 
 const DefaultSockAddr = "/tmp/vpnchains.socket"
 const InjectedLibPath = "/usr/lib/libvpnchains_inject.so"
+const BufSize = 100500
 
 func errorMsg(path string) string {
 	return "Usage: " + path +
@@ -23,9 +24,9 @@ func handleIpc() {
 
 	conn := ipc.NewConnection(DefaultSockAddr)
 	handler := func(conn net.Conn) {
-		var requestBuf []byte
+		var requestBuf = make([]byte, BufSize)
 		n, err := conn.Read(requestBuf)
-		log.Println("bytes read", n) // FIX ME КОСЯК ТУТ
+		requestBuf = requestBuf[:n]
 
 		if err != nil {
 			log.Fatalln(err)
@@ -43,6 +44,7 @@ func handleIpc() {
 	}
 	err := conn.Listen(handler)
 	if err != nil {
+		log.Println("sldfadsf")
 		log.Fatalln(err)
 	}
 }
@@ -78,6 +80,6 @@ func main() {
 
 	err = cmd.Wait()
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln(83, err)
 	}
 }
