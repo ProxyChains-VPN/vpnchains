@@ -81,6 +81,7 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
 
     bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
+//    bson_reader_destroy(reader);
 
     real_write(2, bson_get_data(bson_response), bson_request.len);
 
@@ -92,7 +93,7 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
         | BSON_VALIDATE_UTF8_ALLOW_NULL 
         | BSON_VALIDATE_EMPTY_KEYS,
         NULL)) {
-            real_write(2, "abc\n", 5);
+            real_write(2, "problema not validated\n", 23);
             return -1;
         } else {
             real_write(2, "def\n", 5);
@@ -119,14 +120,12 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
 
     res = bson_iter_int32(&result_code);
     // real_write(2, "and we a re here\n", 17);
-
     if(-1 == real_close(tmp_sock_fd)){
         perror("Close() tmp socket failed");
-        return -1;
     }
 
-    bson_destroy(bson_response);
-
+//    bson_destroy(&bson_response);
+    bson_reader_destroy(reader);
     return res;
 }
 
