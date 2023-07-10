@@ -32,19 +32,19 @@ void callbacks_init() {
         return;
     }
 
-    void *h_dl = dlopen(LIBC_SO, RTLD_LAZY);
+    // void *h_dl = dlopen(LIBC_SO, RTLD_LAZY);
+    void *h_dl = RTLD_NEXT;
     if (h_dl == NULL) {
-        char* err = dlerror();
+//        char* err = dlerror();
 //        write(2, err, strlen(err));
-        exit(1);
+        exit(66);
     }
 
     real_write = (Write_callback)dlsym(h_dl, "write");
     real_read = (Read_callback)dlsym(h_dl, "read");
     real_connect = (Connect_callback)dlsym(h_dl, "connect");
     real_close = (Close_callback)dlsym(h_dl, "close");
-
-    dlclose(h_dl);
+//    dlclose(h_dl);
 }
 
 bool is_internet_socket(int fd) {
@@ -56,7 +56,7 @@ bool is_internet_socket(int fd) {
 
     struct sockaddr addr;
     getsockname(fd, &addr, sizeof(addr));
-    return addr.sa_family != AF_UNIX;
+    return addr.sa_family == AF_UNIX ? false : true;
 }
 
 bool is_valid(const bson_t* bson);
@@ -112,7 +112,7 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     bson_destroy(&bson_request);
 
-    real_write(2, "connect\n", 8);
+//    real_write(2, "connect\n", 8);
 
     bson_reader_t* reader = bson_reader_new_from_fd(ipc_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
@@ -153,12 +153,17 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     return res;
 }
 
-ssize_t read(int sock_fd, void *buf, size_t count){
+SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
     callbacks_init();
 
     if (!is_internet_socket(sock_fd)){
         return real_read(sock_fd, buf, count);
     }
+
+    struct sockaddr addr;
+    getsockname(sock_fd, &addr, sizeof(addr));
+
+    printf("read %d %u\n", sock_fd, addr.sa_family);
 
     int ipc_sock_fd = establish_ipc();
     if (ipc_sock_fd == -1) {
@@ -170,6 +175,13 @@ ssize_t read(int sock_fd, void *buf, size_t count){
     BSON_APPEND_UTF8(&bson_request, "call", "read");
     BSON_APPEND_INT32(&bson_request, "fd", sock_fd);
     BSON_APPEND_INT32(&bson_request, "bytes_to_read", count);
+
+
+//    struct sockaddr addr;
+//    getsockname(fd, &addr, sizeof(addr));
+//    return addr.sa_family != AF_UNIX;
+
+    real_write(2, bson_get_data(&bson_request), bson_request.len);
 
     int bytes_written = real_write(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (bytes_written == -1) {
