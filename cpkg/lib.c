@@ -191,7 +191,10 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
     bson_iter_t iter;
     bson_iter_t bytes_read;
     bson_iter_t buffer;
-    bson_iter_init(&iter, bson_response);
+    if(!bson_iter_init(&iter, bson_response)){
+        perror("Failed to parse bson: bson_iter_init");
+        return -1;
+    }
     bson_iter_find_descendant(&iter, "bytes_read", &bytes_read);
     bson_iter_find_descendant(&iter, "buffer", &buffer);
     int n = bson_iter_int32(&bytes_read);
@@ -254,7 +257,10 @@ SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
     }
     bson_iter_t iter;
     bson_iter_t bytes_written;
-    bson_iter_init(&iter, bson_response);
+    if(!bson_iter_init(&iter, bson_response)){
+        perror("Failed to parse bson: bson_iter_init");
+        return -1;
+    }
     bson_iter_find_descendant(&iter, "bytes_written", &bytes_written);
     ssize_t res = bson_iter_int32(&bytes_written);
 
@@ -323,7 +329,10 @@ SO_EXPORT int close(int fd){
 
     bson_iter_t iter;
     bson_iter_t close_res;
-    bson_iter_init(&iter, bson_response);
+    if(!bson_iter_init(&iter, bson_response)){
+        perror("Failed to parse bson: bson_iter_init");
+        return -1;
+    }
     bson_iter_find_descendant(&iter, "close_res", &close_res);
     int res = bson_iter_int32(&close_res);
 
