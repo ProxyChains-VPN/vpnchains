@@ -113,7 +113,7 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
         perror("Failed to parse bson: bson_iter_init");
         return -1;
     }
-    //TODO норм сообщения об ошибках, норм протокол взаимодействия
+
     if(!bson_iter_find_descendant(&iter, "result_code", &result_code)){
         perror("Failed to parse bson: can't find 'result_code'");
         return -1;
