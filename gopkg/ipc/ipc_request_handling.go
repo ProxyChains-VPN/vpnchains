@@ -27,7 +27,7 @@ func HandleRequest(request []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	callValue := bson.Raw(request).Lookup("Call")
+	callValue := bson.Raw(request).Lookup("call")
 	call, ok := callValue.StringValueOK()
 	if !ok {
 		log.Println(callValue.Value)

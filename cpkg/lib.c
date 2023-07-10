@@ -66,10 +66,10 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
 
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
     bson_t bson_request = BSON_INITIALIZER;
-    BSON_APPEND_UTF8(&bson_request, "Call", "connect");
-    BSON_APPEND_INT32(&bson_request, "SockFd", sock_fd);
-    BSON_APPEND_INT32(&bson_request, "Port", ntohs(sin->sin_port));
-    BSON_APPEND_INT32(&bson_request, "Ip", sin->sin_addr.s_addr);
+    BSON_APPEND_UTF8(&bson_request, "call", "connect");
+    BSON_APPEND_INT32(&bson_request, "sock_fd", sock_fd);
+    BSON_APPEND_INT32(&bson_request, "port", ntohs(sin->sin_port));
+    BSON_APPEND_INT32(&bson_request, "ip", sin->sin_addr.s_addr);
     
     int bytes_written = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (bytes_written == -1) {
@@ -107,7 +107,7 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
         return -1;
     }
     //TODO норм сообщения об ошибках, норм протокол взаимодействия
-    if (!bson_iter_find_descendant(&iter, "resultcode", &result_code)) {
+    if (!bson_iter_find_descendant(&iter, "result_code", &result_code)) {
         real_write(2, "yup\n", 5);
         return -1;
     }
@@ -150,9 +150,9 @@ ssize_t read(int sock_fd, void *buf, size_t count){
     real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
 
     bson_t bson_request = BSON_INITIALIZER;
-    BSON_APPEND_UTF8(&bson_request, "Call", "read");
-    BSON_APPEND_INT32(&bson_request, "Fd", sock_fd);
-    BSON_APPEND_INT32(&bson_request, "BytesToRead", count);
+    BSON_APPEND_UTF8(&bson_request, "call", "read");
+    BSON_APPEND_INT32(&bson_request, "fd", sock_fd);
+    BSON_APPEND_INT32(&bson_request, "bytes_to_read", count);
 
     int bytes_written = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (bytes_written == -1) {
@@ -168,8 +168,8 @@ ssize_t read(int sock_fd, void *buf, size_t count){
     bson_iter_t bytes_read;
     bson_iter_t buffer;
     bson_iter_init(&iter, bson_response);
-    bson_iter_find_descendant(&iter, "BytesRead", &bytes_read);
-    bson_iter_find_descendant(&iter, "Buffer", &buffer);
+    bson_iter_find_descendant(&iter, "bytes_read", &bytes_read);
+    bson_iter_find_descendant(&iter, "buffer", &buffer);
     int n = bson_iter_int32(&bytes_read);
     bson_iter_binary(&buffer, BSON_SUBTYPE_BINARY, &n, (const uint8_t**)&buf);
 
@@ -198,10 +198,10 @@ ssize_t write(int sock_fd, const void *buf, size_t count){
     real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
 
     bson_t bson_request = BSON_INITIALIZER;
-    BSON_APPEND_UTF8(&bson_request, "Call", "write");
-    BSON_APPEND_INT32(&bson_request, "Fd", sock_fd);
-    BSON_APPEND_BINARY(&bson_request, "Buffer", BSON_SUBTYPE_BINARY, buf, count);
-    BSON_APPEND_INT32(&bson_request, "BytesToWrite", count);
+    BSON_APPEND_UTF8(&bson_request, "call", "write");
+    BSON_APPEND_INT32(&bson_request, "fd", sock_fd);
+    BSON_APPEND_BINARY(&bson_request, "buffer", BSON_SUBTYPE_BINARY, buf, count);
+    BSON_APPEND_INT32(&bson_request, "bytes_to_write", count);
 
     real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
 
@@ -210,7 +210,7 @@ ssize_t write(int sock_fd, const void *buf, size_t count){
     bson_iter_t iter;
     bson_iter_t bytes_written;
     bson_iter_init(&iter, bson_response);
-    bson_iter_find_descendant(&iter, "BytesWritten", &bytes_written);
+    bson_iter_find_descendant(&iter, "bytes_written", &bytes_written);
     ssize_t res = bson_iter_int32(&bytes_written);
 
     Close_callback real_close = get_real_close();
