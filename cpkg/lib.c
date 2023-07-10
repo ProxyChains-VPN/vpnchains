@@ -108,12 +108,12 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
     }
     //TODO норм сообщения об ошибках, норм протокол взаимодействия
     if(!bson_iter_find_descendant(&iter, "result_code", &result_code)){
-        perror("Failed to parse bson: bson_iter_find_descendant");
+        perror("Failed to parse bson: can't find 'result_code'");
         return -1;
     }
 
     if(!BSON_ITER_HOLDS_INT32(&result_code)){
-        perror("Failed to parse bson: bson_iter_int32");
+        perror("Failed to parse bson: 'result code' is not int32");
         return -1;
     }
 
@@ -125,7 +125,7 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
         return -1;
     }
 
-    bson_destroy(&bson_response);
+    bson_destroy(bson_response);
 
     return res;
 }
@@ -146,13 +146,22 @@ ssize_t read(int sock_fd, void *buf, size_t count){
 //    real_write(2, "abobaREAD\n", 11);
 
     int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (tmp_sock_fd == -1) {
+        perror("Failed to open tmp socket");
+        return -1;
+    }
+
     struct sockaddr_un name;
     memset(&name, 0, sizeof(name));
     name.sun_family = AF_UNIX;
     strcpy(name.sun_path, "/tmp/vpnchains.socket");
 
     Connect_callback real_connect = get_real_connect();
-    real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
+    int tmp_sock_connect_res = real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
+    if (tmp_sock_connect_res == -1) {
+        perror("Connect() tmp socket failed");
+        return -1;
+    }
 
     bson_t bson_request = BSON_INITIALIZER;
     BSON_APPEND_UTF8(&bson_request, "call", "read");
@@ -161,13 +170,13 @@ ssize_t read(int sock_fd, void *buf, size_t count){
 
     int bytes_written = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (bytes_written == -1) {
-        char* err = strerror(errno);
-        real_write(2, err, strlen(err));
-    } else {
-        real_write(2, "ok", 3);
+        perror("Write() to tmp socket failed");
+        return -1;
     }
 
-    bson_reader_t* reader = bson_reader_new_from_fd (tmp_sock_fd, false);
+    bson_destroy(&bson_request);
+
+    bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
     bson_iter_t iter;
     bson_iter_t bytes_read;
@@ -178,7 +187,13 @@ ssize_t read(int sock_fd, void *buf, size_t count){
     int n = bson_iter_int32(&bytes_read);
     bson_iter_binary(&buffer, BSON_SUBTYPE_BINARY, &n, (const uint8_t**)&buf);
 
-    real_close(tmp_sock_fd);
+    bson_destroy(bson_response);
+    bson_reader_destroy()
+
+    if(-1 == real_close(tmp_sock_fd)){
+        perror("Close() tmp socket failed");
+        return -1;
+    }
 
     return n;
 }
@@ -194,13 +209,22 @@ ssize_t write(int sock_fd, const void *buf, size_t count){
     }
 
     int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (tmp_sock_fd == -1) {
+        perror("Failed to open tmp socket");
+        return -1;
+    }
+
     struct sockaddr_un name;
     memset(&name, 0, sizeof(name));
     name.sun_family = AF_UNIX;
     strcpy(name.sun_path, "/tmp/vpnchains.socket");
 
     Connect_callback real_connect = get_real_connect();
-    real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
+    int tmp_sock_connect_res = real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
+    if (tmp_sock_connect_res == -1) {
+        perror("Connect() tmp socket failed");
+        return -1;
+    }
 
     bson_t bson_request = BSON_INITIALIZER;
     BSON_APPEND_UTF8(&bson_request, "call", "write");
@@ -208,7 +232,13 @@ ssize_t write(int sock_fd, const void *buf, size_t count){
     BSON_APPEND_BINARY(&bson_request, "buffer", BSON_SUBTYPE_BINARY, buf, count);
     BSON_APPEND_INT32(&bson_request, "bytes_to_write", count);
 
-    real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
+    int bytes_written = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
+    if (bytes_written == -1) {
+        perror("Write() to tmp socket failed");
+        return -1;
+    }
+
+    bson_destroy(&bson_request);
 
     bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
@@ -218,8 +248,13 @@ ssize_t write(int sock_fd, const void *buf, size_t count){
     bson_iter_find_descendant(&iter, "bytes_written", &bytes_written);
     ssize_t res = bson_iter_int32(&bytes_written);
 
+    bson_destroy(bson_response);
+
     Close_callback real_close = get_real_close();
-    real_close(tmp_sock_fd);
+    if(-1 == real_close(tmp_sock_fd)){
+        perror("Close() tmp socket failed");
+        return -1;
+    }
 
     return res;
 }
