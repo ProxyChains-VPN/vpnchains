@@ -19,7 +19,7 @@ func errorMsg(path string) string {
 		" <command> [command args...]"
 }
 
-func handleIpc() {
+func handleIpc(ready chan struct{}) {
 	_ = os.Remove(DefaultSockAddr)
 
 	conn := ipc.NewConnection(DefaultSockAddr)
@@ -44,6 +44,8 @@ func handleIpc() {
 			log.Fatalln(err)
 		}
 	}
+
+	ready <- struct{}{}
 	err := conn.Listen(handler)
 	if err != nil {
 		log.Println("sldfadsf")
@@ -73,8 +75,10 @@ func main() {
 
 	cmd := ipc.CreateCommandWithInjectedLibrary(InjectedLibPath, commandPath, commandArgs)
 
-	go handleIpc()
+	ready := make(chan struct{})
+	go handleIpc(ready)
 
+	<-ready
 	err := cmd.Start()
 	if err != nil {
 		log.Fatalln(err)
