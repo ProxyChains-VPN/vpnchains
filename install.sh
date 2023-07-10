@@ -25,15 +25,16 @@ if [ ! $? -eq 0 ] ; then
 fi
 
 if [ -f "/usr/lib/$VPNCHAINS_LIB_NAME" ]; then
-    read -r -p "$VPNCHAINS_LIB_NAME already exist! Replace? [y/N] " response
+    read -r -p "$VPNCHAINS_LIB_NAME already exist! Replace? [Y/n] " response
     case "$response" in
-        [yY][eE][sS]|[yY])
+        [nN][oO])
+            echo "Skipping moving $VPNCHAINS_LIB_NAME to /usr/lib; be sure you have a correct library installed"
+            ;;
+        *)
             echo "Moving $VPNCHAINS_LIB_NAME to /usr/lib; need sudo"
             sudo cp $VPNCHAINS_OUTPUT_DIR/$VPNCHAINS_LIB_NAME /usr/lib/$VPNCHAINS_LIB_NAME
             ;;
-        *)
-            echo "Skipping moving $VPNCHAINS_LIB_NAME to /usr/lib; be sure you have a correct library installed"
-            ;;
+
     esac
 else
     echo "Moving $VPNCHAINS_LIB_NAME to /usr/lib; need sudo"
