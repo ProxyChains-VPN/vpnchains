@@ -27,5 +27,13 @@ type WriteRequest struct {
 }
 
 type WriteResponse struct {
-	BytesWritten int32
+	BytesWritten int32 `bson:"bytes_written"`
+}
+
+type CloseRequest struct {
+	Fd int32 `bson:"fd"`
+}
+
+type CloseResponse struct {
+	CloseResult int32 `bson:"close_res"`
 }
