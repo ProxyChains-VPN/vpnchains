@@ -13,7 +13,7 @@ func processWrite(request *WriteRequest) (*WriteResponse, error) {
 
 func processRead(request *ReadRequest) (*ReadResponse, error) {
 	//log.Println(request)
-	return &ReadResponse{"animeaboba", 666}, nil
+	return &ReadResponse{Buffer: []byte("amogus"), BytesRead: 7}, nil
 }
 
 func processConnect(request *ConnectRequest) (*ConnectResponse, error) {
@@ -24,7 +24,7 @@ func processConnect(request *ConnectRequest) (*ConnectResponse, error) {
 var errorWriteResponse = WriteResponse{BytesWritten: -1}
 var errorWriteResponseBytes, _ = bson.Marshal(errorWriteResponse)
 
-var errorReadResponse = ReadResponse{Buffer: "", BytesRead: -1}
+var errorReadResponse = ReadResponse{[]byte(""), 0}
 var errorReadResponseBytes, _ = bson.Marshal(errorReadResponse)
 
 var errorConnectResponse = ConnectResponse{ResultCode: -1}

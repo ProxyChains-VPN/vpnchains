@@ -32,10 +32,10 @@ int main() {
 //    }
 //    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 //    write(sockfd, "sdf\n", 5);
-    char buf2[100];
-    int asd = read(0, buf2, 100);
-     write(1, buf2, asd);
+    char buf2[100] = "amogus/n";
+//    int asd = read(0, buf2, 100);
+//     write(1, buf2, asd);
 
-    s = socket(AF_UNIX, SOCK_STREAM, 0);
-    read(s, buf2, 100);
+    s = socket(AF_INET, SOCK_STREAM, 0);
+    read(s, buf2, 9);
 }
