@@ -186,8 +186,8 @@ ssize_t read(int sock_fd, void *buf, size_t count){
     int n = bson_iter_int32(&bytes_read);
     bson_iter_binary(&buffer, BSON_SUBTYPE_BINARY, &n, (const uint8_t**)&buf);
 
-    bson_destroy(bson_response);
-    bson_reader_destroy()
+//    bson_destroy(bson_response);
+    bson_reader_destroy(reader);
 
     if(-1 == real_close(tmp_sock_fd)){
         perror("Close() tmp socket failed");
@@ -231,8 +231,8 @@ ssize_t write(int sock_fd, const void *buf, size_t count){
     BSON_APPEND_BINARY(&bson_request, "buffer", BSON_SUBTYPE_BINARY, buf, count);
     BSON_APPEND_INT32(&bson_request, "bytes_to_write", count);
 
-    int bytes_written = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
-    if (bytes_written == -1) {
+    int write_res = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
+    if (write_res == -1) {
         perror("Write() to tmp socket failed");
         return -1;
     }
@@ -247,7 +247,8 @@ ssize_t write(int sock_fd, const void *buf, size_t count){
     bson_iter_find_descendant(&iter, "bytes_written", &bytes_written);
     ssize_t res = bson_iter_int32(&bytes_written);
 
-    bson_destroy(bson_response);
+//    bson_destroy(bson_response);
+    bson_reader_destroy(reader);
 
     Close_callback real_close = get_real_close();
     if(-1 == real_close(tmp_sock_fd)){
