@@ -15,34 +15,42 @@ typedef int (*Write_callback)(int, const void*, size_t);
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
 typedef int (*Close_callback)(int);
 
-void* get_hDl(){
-    char* lib_name = LIBC_SO;
-    return dlopen(lib_name, RTLD_LAZY);
+
+bool is_internet_socket(int sock_fd){
+    struct stat statbuf;
+    fstat(fd, &statbuf);
+    if (!S_ISSOCK(statbuf.st_mode)){
+        return false;
+    }
+
+    struct sockaddr addr;
+    getsockname(fd, &addr, sizeof(addr));
+    return addr.sa_family != AF_UNIX;
 }
 
 Write_callback get_real_write(){
-    void *hDl = get_hDl();
+    void *hDl = GET_HDL();
     Write_callback real_write = (Write_callback)dlsym(hDl, "write");
     dlclose(hDl);
     return real_write;
 }
 
 Read_callback get_real_read(){
-    void *hDl = get_hDl();
+    void *hDl = GET_HDL();
     Read_callback real_read = (Read_callback)dlsym(hDl, "read");
     dlclose(hDl);
     return real_read;
 }
 
 Connect_callback get_real_connect(){
-    void *hDl = get_hDl();
+    void *hDl = GET_HDL();
     Connect_callback real_connect = (Connect_callback)dlsym(hDl, "connect");
     dlclose(hDl);
     return real_connect;
 }
 
 Close_callback get_real_close(){
-    void *hDl = get_hDl();
+    void *hDl = GET_HDL();
     Close_callback real_close = (Close_callback)dlsym(hDl, "close");
     dlclose(hDl);
     return real_close;
@@ -52,6 +60,10 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     Connect_callback real_connect = get_real_connect();
     Write_callback real_write = get_real_write();
     Close_callback real_close = get_real_close();
+
+    if (!is_internet_socket(sock_fd)){
+        return real_connect(sock_fd, addr, addrlen);
+    }
 
     int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (tmp_sock_fd == -1) {
@@ -138,15 +150,7 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
     Read_callback real_read = get_real_read();
 
-    struct stat statbuf;
-    fstat(sock_fd, &statbuf);
-    if (!S_ISSOCK(statbuf.st_mode)) {
-        return real_read(sock_fd, buf, count);
-    }
-
-    struct sockaddr addr;
-    getsockname(sock_fd, &addr, sizeof(addr));
-    if (addr.sa_family == AF_UNIX) {
+    if (!is_internet_socket(sock_fd)){
         return real_read(sock_fd, buf, count);
     }
 
@@ -211,15 +215,7 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
 SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
     Write_callback real_write = get_real_write();
 
-    struct stat statbuf;
-    fstat(sock_fd, &statbuf);
-    if(!S_ISSOCK(statbuf.st_mode)){
-        return real_write(sock_fd, buf, count);
-    }
-
-    struct sockaddr addr;
-    getsockname(sock_fd, &addr, sizeof(addr));
-    if (addr.sa_family == AF_UNIX) {
+    if (!is_internet_socket(sock_fd)){
         return real_write(sock_fd, buf, count);
     }
 
