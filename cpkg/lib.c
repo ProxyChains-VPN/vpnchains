@@ -15,7 +15,6 @@ typedef int (*Write_callback)(int, const void*, size_t);
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
 typedef int (*Close_callback)(int);
 
-
 bool is_internet_socket(int sock_fd){
     struct stat statbuf;
     fstat(fd, &statbuf);
@@ -27,6 +26,9 @@ bool is_internet_socket(int sock_fd){
     getsockname(fd, &addr, sizeof(addr));
     return addr.sa_family != AF_UNIX;
 }
+
+int is_valid(const bson_t* bson);
+
 
 Write_callback get_real_write(){
     void *hDl = GET_HDL();
@@ -103,19 +105,9 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     real_write(2, bson_get_data(bson_response), bson_request.len);
 
-    if (!bson_validate(
-        bson_response, 
-        BSON_VALIDATE_UTF8 
-        | BSON_VALIDATE_DOLLAR_KEYS 
-        | BSON_VALIDATE_DOT_KEYS 
-        | BSON_VALIDATE_UTF8_ALLOW_NULL 
-        | BSON_VALIDATE_EMPTY_KEYS,
-        NULL)) {
-            real_write(2, "problema not validated\n", 23);
-            return -1;
-        } else {
-            real_write(2, "def\n", 5);
-        }
+    if(!is_valid(bson_response)){
+        return -1;
+    }
 
     int res = -1;
 
@@ -192,6 +184,9 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
 
     bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
+    if(!is_valid(bson_response)){
+        return -1;
+    }
     bson_iter_t iter;
     bson_iter_t bytes_read;
     bson_iter_t buffer;
@@ -253,6 +248,9 @@ SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
 
     bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
+    if(!is_valid(bson_response)){
+        return -1;
+    }
     bson_iter_t iter;
     bson_iter_t bytes_written;
     bson_iter_init(&iter, bson_response);
@@ -318,6 +316,10 @@ SO_EXPORT int close(int fd){
 
     bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
+    if(!is_valid(bson_response)){
+        return -1;
+    }
+
     bson_iter_t iter;
     bson_iter_t close_res;
     bson_iter_init(&iter, bson_response);
@@ -325,4 +327,19 @@ SO_EXPORT int close(int fd){
     int res = bson_iter_int32(&close_res);
 
     return res;
+}
+
+int is_valid(const bson_t* bson){
+    if (!bson_validate(
+        bson, 
+        BSON_VALIDATE_UTF8 
+        | BSON_VALIDATE_DOLLAR_KEYS 
+        | BSON_VALIDATE_DOT_KEYS 
+        | BSON_VALIDATE_UTF8_ALLOW_NULL 
+        | BSON_VALIDATE_EMPTY_KEYS,
+        NULL)) {
+            real_write(2, "Response bson is not valid\n", 27);
+            return -1;
+        } 
+    return 0;
 }
