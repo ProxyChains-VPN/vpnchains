@@ -16,21 +16,21 @@ if [ ! -d "$LIBBSON_INCLUDE_DIR" ]; then
     exit 1
 fi
 
-echo "Compiling lib"
-make lib -B
-
-if [ ! $? -eq 0 ] ; then
-    echo "Build unsuccessful! Exiting with code 1..."
-    exit 1
-fi
-
 if [ -f "/usr/lib/$VPNCHAINS_LIB_NAME" ]; then
-    read -r -p "$VPNCHAINS_LIB_NAME already exist! Replace? [Y/n] " response
+    read -r -p "$VPNCHAINS_LIB_NAME already exist! Recompile and replace? [Y/n] " response
     case "$response" in
         [nN][oO])
             echo "Skipping moving $VPNCHAINS_LIB_NAME to /usr/lib; be sure you have a correct library installed"
             ;;
         *)
+            echo "Compiling lib"
+            make lib -B
+
+            if [ ! $? -eq 0 ] ; then
+                echo "Build unsuccessful! Exiting with code 1..."
+                exit 1
+            fi
+
             echo "Moving $VPNCHAINS_LIB_NAME to /usr/lib; need sudo"
             sudo cp $VPNCHAINS_OUTPUT_DIR/$VPNCHAINS_LIB_NAME /usr/lib/$VPNCHAINS_LIB_NAME
             ;;
