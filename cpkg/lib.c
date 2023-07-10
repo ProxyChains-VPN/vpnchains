@@ -267,7 +267,10 @@ SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
         perror("Failed to parse bson: bson_iter_init");
         return -1;
     }
-    bson_iter_find_descendant(&iter, "bytes_written", &bytes_written);
+    if(!bson_iter_find_descendant(&iter, "bytes_written", &bytes_written)){
+        perror("Failed to parse bson: can't find 'bytes_written'");
+        return -1;
+    }
     ssize_t res = bson_iter_int32(&bytes_written);
 
 //    bson_destroy(bson_response);
@@ -339,7 +342,10 @@ SO_EXPORT int close(int fd){
         perror("Failed to parse bson: bson_iter_init");
         return -1;
     }
-    bson_iter_find_descendant(&iter, "close_res", &close_res);
+    if(!bson_iter_find_descendant(&iter, "close_res", &close_res)){
+        perror("Failed to parse bson: can't find 'close_res'");
+        return -1;
+    }
     int res = bson_iter_int32(&close_res);
 
     return res;
