@@ -14,8 +14,9 @@ VPNCHAINS_OUTPUT_DIR := build
 endif
 
 
-all: app lib
-
+all: pre app lib
+pre:
+	mkdir $(VPNCHAINS_OUTPUT_DIR)
 app:
 	$(GO_CC) -o $(VPNCHAINS_OUTPUT_DIR)/$(VPNCHAINS_EXECUTABLE_NAME) gopkg/main/main.go
 lib:
