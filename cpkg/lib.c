@@ -204,9 +204,12 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
         return -1;
     }
     int n = bson_iter_int32(&bytes_read);
-    bson_iter_binary(&buffer, BSON_SUBTYPE_BINARY, &n, (const uint8_t**)&buf);
 
-//    bson_destroy(bson_response);
+    void *newbuf;
+    bson_iter_binary(&buffer, BSON_SUBTYPE_BINARY, &n, (const uint8_t**)&newbuf);
+    memcpy(buf, newbuf, n); // TODO надо очистить память???
+
+    bson_destroy(bson_response);
     bson_reader_destroy(reader);
 
     if(-1 == real_close(ipc_sock_fd)){

@@ -7,13 +7,13 @@ import (
 )
 
 func processWrite(request *WriteRequest) (*WriteResponse, error) {
-	//log.Println(request)
+	log.Println(string(request.Buffer))
 	return &WriteResponse{100500}, nil
 }
 
 func processRead(request *ReadRequest) (*ReadResponse, error) {
 	//log.Println(request)
-	return &ReadResponse{Buffer: []byte("amogus"), BytesRead: 7}, nil
+	return &ReadResponse{Buffer: []byte("PRIVET"), BytesRead: 6}, nil
 }
 
 func processConnect(request *ConnectRequest) (*ConnectResponse, error) {
