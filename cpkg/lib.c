@@ -1,12 +1,12 @@
+#include "lib.h"
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <netinet/in.h>
 #include <sys/stat.h>
 #include <sys/un.h>
-#include "lib.h"
 #include <assert.h>
-
 #include <string.h>
+#include <stdio.h>
 #include <gnu/lib-names.h>
 
 void* get_hDl(){
@@ -49,8 +49,8 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
 
     int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (tmp_sock_fd == -1) {
-        char* err = strerror(errno);
-        real_write(2, err, strlen(err));
+        perror("Connect() tmp socket failed");
+        return -1;
     }
 
     struct sockaddr_un name;
@@ -60,8 +60,8 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
 
     int tmp_sock_connect_res = real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
     if (tmp_sock_connect_res == -1) {
-        char* err = strerror(errno);
-        real_write(2, err, strlen(err));
+        perror("Connect() failed");
+        return -1;
     }
 
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
@@ -73,8 +73,8 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
     
     int bytes_written = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (bytes_written == -1) {
-        char* err = strerror(errno);
-        real_write(2, err, strlen(err));
+        perror("Write() to tmp socket failed");
+        return -1;
     }
 
     bson_destroy(&bson_request);
@@ -102,24 +102,29 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
 
     bson_iter_t iter;
     bson_iter_t result_code;
-    if (!bson_iter_init(&iter, bson_response)) {
-        real_write(2, "noi\n", 5);
+    if(!bson_iter_init(&iter, bson_response)){
+        perror("Failed to parse bson: bson_iter_init");
         return -1;
     }
     //TODO норм сообщения об ошибках, норм протокол взаимодействия
-    if (!bson_iter_find_descendant(&iter, "result_code", &result_code)) {
-        real_write(2, "yup\n", 5);
+    if(!bson_iter_find_descendant(&iter, "result_code", &result_code)){
+        perror("Failed to parse bson: bson_iter_find_descendant");
         return -1;
     }
 
-    if (BSON_ITER_HOLDS_INT32(&result_code)) { 
-        real_write(2, "kkk\n", 5);
-        res = bson_iter_int32(&result_code);
+    if(!BSON_ITER_HOLDS_INT32(&result_code)){
+        perror("Failed to parse bson: bson_iter_int32");
         return -1;
     }
+
+    res = bson_iter_int32(&result_code);
     // real_write(2, "and we a re here\n", 17);
 
-    real_close(tmp_sock_fd);
+    if(-1 == real_close(tmp_sock_fd)){
+        perror("Close() tmp socket failed");
+        return -1;
+    }
+
     bson_destroy(&bson_response);
 
     return res;
