@@ -8,6 +8,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <gnu/lib-names.h>
+#include <libbson-1.0/bson/bson.h>
+
+typedef size_t (*Read_callback)(int, void*, size_t);
+typedef int (*Write_callback)(int, const void*, size_t);
+typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
+typedef int (*Close_callback)(int);
 
 void* get_hDl(){
     char* lib_name = LIBC_SO;
@@ -42,7 +48,7 @@ Close_callback get_real_close(){
     return real_close;
 }
 
-SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
+SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
     Connect_callback real_connect = get_real_connect();
     Write_callback real_write = get_real_write();
     Close_callback real_close = get_real_close();
