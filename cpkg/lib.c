@@ -135,13 +135,18 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     return res;
 }
 
-ssize_t read(int sock_fd, void *buf, size_t count){
-
+SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
     Read_callback real_read = get_real_read();
 
     struct stat statbuf;
     fstat(sock_fd, &statbuf);
-    if(!S_ISSOCK(statbuf.st_mode)){
+    if (!S_ISSOCK(statbuf.st_mode)) {
+        return real_read(sock_fd, buf, count);
+    }
+
+    struct sockaddr addr;
+    getsockname(sock_fd, &addr, sizeof(addr));
+    if (addr.sa_family == AF_UNIX) {
         return real_read(sock_fd, buf, count);
     }
 
@@ -203,13 +208,18 @@ ssize_t read(int sock_fd, void *buf, size_t count){
     return n;
 }
 
-ssize_t write(int sock_fd, const void *buf, size_t count){
+SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
     Write_callback real_write = get_real_write();
-    real_write(2, "abobaWRIT\n", 11);
 
     struct stat statbuf;
     fstat(sock_fd, &statbuf);
     if(!S_ISSOCK(statbuf.st_mode)){
+        return real_write(sock_fd, buf, count);
+    }
+
+    struct sockaddr addr;
+    getsockname(sock_fd, &addr, sizeof(addr));
+    if (addr.sa_family == AF_UNIX) {
         return real_write(sock_fd, buf, count);
     }
 
