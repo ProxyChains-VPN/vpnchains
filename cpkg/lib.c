@@ -32,11 +32,8 @@ void callbacks_init() {
         return;
     }
 
-//     void *h_dl = dlopen(LIBC_SO, RTLD_LAZY);
     void *h_dl = RTLD_NEXT;
     if (h_dl == NULL) {
-//        char* err = dlerror();
-//        write(2, err, strlen(err));
         exit(66);
     }
 
@@ -54,14 +51,14 @@ bool is_internet_socket(int fd) {
         return false;
     }
 
-    struct sockaddr_in addr;
-    socklen_t len = NULL;
+    struct sockaddr addr;
+    socklen_t len = sizeof(addr);
     int returnvalue = getsockname(fd, (struct sockaddr *) &addr, &len);
     if (returnvalue == -1) {
         perror("getsockname() failed");
         return false;
     }
-    return addr.sin_family == AF_INET6 || addr.sin_family == AF_INET;
+    return addr.sa_family == AF_INET6 || addr.sa_family == AF_INET;
 }
 
 bool is_valid(const bson_t* bson);
@@ -91,7 +88,7 @@ int establish_ipc() {
 SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
     callbacks_init();
 
-    if (!is_internet_socket(sock_fd)){
+    if (!is_internet_socket(sock_fd)) {
         return real_connect(sock_fd, addr, addrlen);
     }
 
@@ -162,6 +159,7 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
     callbacks_init();
 
     if (!is_internet_socket(sock_fd)){
+        fprintf(stderr, "HERE %d\n\n", sock_fd);
         return real_read(sock_fd, buf, count);
     }
 
