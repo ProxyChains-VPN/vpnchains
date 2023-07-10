@@ -11,7 +11,7 @@
 #include <stdbool.h>
 #include <libbson-1.0/bson/bson.h>
 
-typedef size_t (*Read_callback)(int, void*, size_t);
+typedef ssize_t (*Read_callback)(int, void*, size_t);
 typedef int (*Write_callback)(int, const void*, size_t);
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
 typedef int (*Close_callback)(int);
@@ -168,14 +168,11 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
     BSON_APPEND_INT32(&bson_request, "fd", sock_fd);
     BSON_APPEND_INT32(&bson_request, "bytes_to_read", count);
 
-    real_write(2, itoa(sock_fd), len(itoa(sock_fd)));
-
     int bytes_written = real_write(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (bytes_written == -1) {
         perror("Write() to tmp socket failed");
         return -1;
     }
-
 
     bson_destroy(&bson_request);
 
