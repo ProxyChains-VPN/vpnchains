@@ -49,7 +49,7 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
 
     int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (tmp_sock_fd == -1) {
-        perror("Connect() tmp socket failed");
+        perror("Failed to open tmp socket");
         return -1;
     }
 
@@ -60,7 +60,7 @@ SO_VISIBLE int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrl
 
     int tmp_sock_connect_res = real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
     if (tmp_sock_connect_res == -1) {
-        perror("Connect() failed");
+        perror("Connect() tmp socket failed");
         return -1;
     }
 
