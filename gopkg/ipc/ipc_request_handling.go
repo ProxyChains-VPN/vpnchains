@@ -7,17 +7,17 @@ import (
 )
 
 func processWrite(request *WriteRequest) (*WriteResponse, error) {
-	log.Println(request)
+	//log.Println(request)
 	return &WriteResponse{100500}, nil
 }
 
 func processRead(request *ReadRequest) (*ReadResponse, error) {
-	log.Println(request)
+	//log.Println(request)
 	return &ReadResponse{"animeaboba", 666}, nil
 }
 
 func processConnect(request *ConnectRequest) (*ConnectResponse, error) {
-	log.Println(request)
+	//log.Println(request)
 	return &ConnectResponse{0}, nil
 }
 
