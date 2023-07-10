@@ -29,6 +29,24 @@ bool is_internet_socket(int sock_fd){
 
 int is_valid(const bson_t* bson);
 
+void establish_ipc() {
+    int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (tmp_sock_fd == -1) {
+        perror("Failed to open tmp socket");
+        return -1;
+    }
+
+    struct sockaddr_un name;
+    memset(&name, 0, sizeof(name));
+    name.sun_family = AF_UNIX;
+    strcpy(name.sun_path, "/tmp/vpnchains.socket");
+
+    int tmp_sock_connect_res = real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
+    if (tmp_sock_connect_res == -1) {
+        perror("Connect() tmp socket failed");
+        return -1;
+    }
+}
 
 Write_callback get_real_write(){
     void *hDl = GET_HDL();
@@ -65,23 +83,6 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     if (!is_internet_socket(sock_fd)){
         return real_connect(sock_fd, addr, addrlen);
-    }
-
-    int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (tmp_sock_fd == -1) {
-        perror("Failed to open tmp socket");
-        return -1;
-    }
-
-    struct sockaddr_un name;
-    memset(&name, 0, sizeof(name));
-    name.sun_family = AF_UNIX;
-    strcpy(name.sun_path, "/tmp/vpnchains.socket");
-
-    int tmp_sock_connect_res = real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
-    if (tmp_sock_connect_res == -1) {
-        perror("Connect() tmp socket failed");
-        return -1;
     }
 
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
