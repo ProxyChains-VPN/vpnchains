@@ -195,8 +195,14 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
         perror("Failed to parse bson: bson_iter_init");
         return -1;
     }
-    bson_iter_find_descendant(&iter, "bytes_read", &bytes_read);
-    bson_iter_find_descendant(&iter, "buffer", &buffer);
+    if(!bson_iter_find_descendant(&iter, "bytes_read", &bytes_read)){
+        perror("Failed to parse bson: can't find 'bytes_read'");
+        return -1;
+    }
+    if(!bson_iter_find_descendant(&iter, "buffer", &buffer)){
+        perror("Failed to parse bson: can't find 'buffer'");
+        return -1;
+    }
     int n = bson_iter_int32(&bytes_read);
     bson_iter_binary(&buffer, BSON_SUBTYPE_BINARY, &n, (const uint8_t**)&buf);
 
