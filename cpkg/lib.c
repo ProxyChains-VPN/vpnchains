@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <gnu/lib-names.h>
+#include <stdbool.h>
 #include <libbson-1.0/bson/bson.h>
 
 typedef size_t (*Read_callback)(int, void*, size_t);
@@ -15,7 +16,35 @@ typedef int (*Write_callback)(int, const void*, size_t);
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
 typedef int (*Close_callback)(int);
 
-bool is_internet_socket(int sock_fd){
+Write_callback real_write = NULL;
+Read_callback real_read = NULL;
+Connect_callback real_connect = NULL;
+Close_callback real_close = NULL;
+
+void callbacks_init() {
+    static bool called = false;
+    if (!called) {
+        called = true;
+    } else {
+        return;
+    }
+
+    void *h_dl = dlopen(LIBC_SO, RTLD_LAZY);
+    if (h_dl == NULL) {
+        char* err = dlerror();
+//        write(2, err, strlen(err));
+        exit(1);
+    }
+
+    real_write = (Write_callback)dlsym(h_dl, "write");
+    real_read = (Read_callback)dlsym(h_dl, "read");
+    real_connect = (Connect_callback)dlsym(h_dl, "connect");
+    real_close = (Close_callback)dlsym(h_dl, "close");
+
+    dlclose(h_dl);
+}
+
+bool is_internet_socket(int fd) {
     struct stat statbuf;
     fstat(fd, &statbuf);
     if (!S_ISSOCK(statbuf.st_mode)){
@@ -29,9 +58,9 @@ bool is_internet_socket(int sock_fd){
 
 int is_valid(const bson_t* bson);
 
-void establish_ipc() {
-    int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (tmp_sock_fd == -1) {
+int establish_ipc() {
+    int ipc_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (ipc_sock_fd == -1) {
         perror("Failed to open tmp socket");
         return -1;
     }
@@ -39,60 +68,40 @@ void establish_ipc() {
     struct sockaddr_un name;
     memset(&name, 0, sizeof(name));
     name.sun_family = AF_UNIX;
-    strcpy(name.sun_path, "/tmp/vpnchains.socket");
+    strcpy(name.sun_path, IPC_SOCK_PATH);
 
-    int tmp_sock_connect_res = real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
+    int tmp_sock_connect_res = real_connect(ipc_sock_fd, (const struct sockaddr*)&name, sizeof(name));
     if (tmp_sock_connect_res == -1) {
         perror("Connect() tmp socket failed");
+        real_close(ipc_sock_fd);
         return -1;
     }
-}
 
-Write_callback get_real_write(){
-    void *hDl = GET_HDL();
-    Write_callback real_write = (Write_callback)dlsym(hDl, "write");
-    dlclose(hDl);
-    return real_write;
-}
-
-Read_callback get_real_read(){
-    void *hDl = GET_HDL();
-    Read_callback real_read = (Read_callback)dlsym(hDl, "read");
-    dlclose(hDl);
-    return real_read;
-}
-
-Connect_callback get_real_connect(){
-    void *hDl = GET_HDL();
-    Connect_callback real_connect = (Connect_callback)dlsym(hDl, "connect");
-    dlclose(hDl);
-    return real_connect;
-}
-
-Close_callback get_real_close(){
-    void *hDl = GET_HDL();
-    Close_callback real_close = (Close_callback)dlsym(hDl, "close");
-    dlclose(hDl);
-    return real_close;
+    return ipc_sock_fd;
 }
 
 SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
-    Connect_callback real_connect = get_real_connect();
-    Write_callback real_write = get_real_write();
-    Close_callback real_close = get_real_close();
+    callbacks_init();
 
     if (!is_internet_socket(sock_fd)){
         return real_connect(sock_fd, addr, addrlen);
     }
 
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
+
     bson_t bson_request = BSON_INITIALIZER;
     BSON_APPEND_UTF8(&bson_request, "call", "connect");
     BSON_APPEND_INT32(&bson_request, "sock_fd", sock_fd);
     BSON_APPEND_INT32(&bson_request, "port", ntohs(sin->sin_port));
     BSON_APPEND_INT32(&bson_request, "ip", sin->sin_addr.s_addr);
+
+    int ipc_sock_fd = establish_ipc();
+    if (ipc_sock_fd == -1) {
+        real_write(2, "Failed to establish IPC\n", 24);
+        return -1;
+    }
     
-    int bytes_written = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
+    int bytes_written = real_write(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (bytes_written == -1) {
         perror("Write() to tmp socket failed");
         return -1;
@@ -100,7 +109,9 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     bson_destroy(&bson_request);
 
-    bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
+    real_write(2, "connect\n", 8);
+
+    bson_reader_t* reader = bson_reader_new_from_fd(ipc_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
 //    bson_reader_destroy(reader);
 
@@ -114,24 +125,23 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     bson_iter_t iter;
     bson_iter_t result_code;
-    if(!bson_iter_init(&iter, bson_response)){
+    if (!bson_iter_init(&iter, bson_response)){
         perror("Failed to parse bson: bson_iter_init");
         return -1;
     }
 
-    if(!bson_iter_find_descendant(&iter, "result_code", &result_code)){
+    if (!bson_iter_find_descendant(&iter, "result_code", &result_code)){
         perror("Failed to parse bson: can't find 'result_code'");
         return -1;
     }
 
-    if(!BSON_ITER_HOLDS_INT32(&result_code)){
+    if (!BSON_ITER_HOLDS_INT32(&result_code)){
         perror("Failed to parse bson: 'result code' is not int32");
         return -1;
     }
 
     res = bson_iter_int32(&result_code);
-    // real_write(2, "and we a re here\n", 17);
-    if(-1 == real_close(tmp_sock_fd)){
+    if (-1 == real_close(ipc_sock_fd)){
         perror("Close() tmp socket failed");
     }
 
@@ -141,32 +151,15 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 }
 
 SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
-    Read_callback real_read = get_real_read();
+    callbacks_init();
 
     if (!is_internet_socket(sock_fd)){
         return real_read(sock_fd, buf, count);
     }
 
-    Write_callback real_write = get_real_write();
-    Close_callback real_close = get_real_close();
-
-//    real_write(2, "abobaREAD\n", 11);
-
-    int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (tmp_sock_fd == -1) {
-        perror("Failed to open tmp socket");
-        return -1;
-    }
-
-    struct sockaddr_un name;
-    memset(&name, 0, sizeof(name));
-    name.sun_family = AF_UNIX;
-    strcpy(name.sun_path, "/tmp/vpnchains.socket");
-
-    Connect_callback real_connect = get_real_connect();
-    int tmp_sock_connect_res = real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
-    if (tmp_sock_connect_res == -1) {
-        perror("Connect() tmp socket failed");
+    int ipc_sock_fd = establish_ipc();
+    if (ipc_sock_fd == -1) {
+        real_write(2, "Failed to establish IPC\n", 24);
         return -1;
     }
 
@@ -175,15 +168,18 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
     BSON_APPEND_INT32(&bson_request, "fd", sock_fd);
     BSON_APPEND_INT32(&bson_request, "bytes_to_read", count);
 
-    int bytes_written = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
+    real_write(2, itoa(sock_fd), len(itoa(sock_fd)));
+
+    int bytes_written = real_write(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (bytes_written == -1) {
         perror("Write() to tmp socket failed");
         return -1;
     }
 
+
     bson_destroy(&bson_request);
 
-    bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
+    bson_reader_t* reader = bson_reader_new_from_fd(ipc_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
     if(!is_valid(bson_response)){
         return -1;
@@ -209,7 +205,7 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
 //    bson_destroy(bson_response);
     bson_reader_destroy(reader);
 
-    if(-1 == real_close(tmp_sock_fd)){
+    if(-1 == real_close(ipc_sock_fd)){
         perror("Close() tmp socket failed");
         return -1;
     }
@@ -218,27 +214,15 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
 }
 
 SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
-    Write_callback real_write = get_real_write();
+    callbacks_init();
 
     if (!is_internet_socket(sock_fd)){
         return real_write(sock_fd, buf, count);
     }
 
-    int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (tmp_sock_fd == -1) {
-        perror("Failed to open tmp socket");
-        return -1;
-    }
-
-    struct sockaddr_un name;
-    memset(&name, 0, sizeof(name));
-    name.sun_family = AF_UNIX;
-    strcpy(name.sun_path, "/tmp/vpnchains.socket");
-
-    Connect_callback real_connect = get_real_connect();
-    int tmp_sock_connect_res = real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
-    if (tmp_sock_connect_res == -1) {
-        perror("Connect() tmp socket failed");
+    int ipc_sock_fd = establish_ipc();
+    if (ipc_sock_fd == -1) {
+        real_write(2, "Failed to establish IPC\n", 24);
         return -1;
     }
 
@@ -248,7 +232,7 @@ SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
     BSON_APPEND_BINARY(&bson_request, "buffer", BSON_SUBTYPE_BINARY, buf, count);
     BSON_APPEND_INT32(&bson_request, "bytes_to_write", count);
 
-    int write_res = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
+    int write_res = real_write(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (write_res == -1) {
         perror("Write() to tmp socket failed");
         return -1;
@@ -256,7 +240,7 @@ SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
 
     bson_destroy(&bson_request);
 
-    bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
+    bson_reader_t* reader = bson_reader_new_from_fd(ipc_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
     if(!is_valid(bson_response)){
         return -1;
@@ -276,8 +260,7 @@ SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
 //    bson_destroy(bson_response);
     bson_reader_destroy(reader);
 
-    Close_callback real_close = get_real_close();
-    if(-1 == real_close(tmp_sock_fd)){
+    if(-1 == real_close(ipc_sock_fd)){
         perror("Close() tmp socket failed");
         return -1;
     }
@@ -286,35 +269,15 @@ SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
 }
 
 SO_EXPORT int close(int fd){
-    Close_callback real_close = get_real_close();
-
-    struct stat statbuf;
-    fstat(fd, &statbuf);
-    if(!S_ISSOCK(statbuf.st_mode)){
+    callbacks_init();
+    
+    if (!is_internet_socket(fd)){
         return real_close(fd);
     }
 
-    struct sockaddr addr;
-    getsockname(fd, &addr, sizeof(addr));
-    if (addr.sa_family == AF_UNIX) {
-        return real_close(fd);
-    }
-
-    int tmp_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (tmp_sock_fd == -1) {
-        perror("Failed to open tmp socket");
-        return -1;
-    }
-
-    struct sockaddr_un name;
-    memset(&name, 0, sizeof(name));
-    name.sun_family = AF_UNIX;
-    strcpy(name.sun_path, "/tmp/vpnchains.socket");
-
-    Connect_callback real_connect = get_real_connect();
-    int tmp_sock_connect_res = real_connect(tmp_sock_fd, (const struct sockaddr*)&name, sizeof(name));
-    if (tmp_sock_connect_res == -1) {
-        perror("Connect() tmp socket failed");
+    int ipc_sock_fd = establish_ipc();
+    if (ipc_sock_fd == -1) {
+        real_write(2, "Failed to establish IPC\n", 24);
         return -1;
     }
 
@@ -322,7 +285,7 @@ SO_EXPORT int close(int fd){
     BSON_APPEND_UTF8(&bson_request, "call", "close");
     BSON_APPEND_INT32(&bson_request, "fd", fd);
 
-    int write_res = real_write(tmp_sock_fd, bson_get_data(&bson_request), bson_request.len);
+    int write_res = real_write(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (write_res == -1) {
         perror("Write() to tmp socket failed");
         return -1;
@@ -330,7 +293,7 @@ SO_EXPORT int close(int fd){
 
     bson_destroy(&bson_request);
 
-    bson_reader_t* reader = bson_reader_new_from_fd(tmp_sock_fd, false);
+    bson_reader_t* reader = bson_reader_new_from_fd(ipc_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
     if(!is_valid(bson_response)){
         return -1;
