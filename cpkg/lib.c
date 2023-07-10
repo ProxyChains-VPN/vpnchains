@@ -11,6 +11,9 @@
 #include <stdbool.h>
 #include <libbson-1.0/bson/bson.h>
 
+#include <stdlib.h>
+#include <stdio.h>
+
 typedef ssize_t (*Read_callback)(int, void*, size_t);
 typedef int (*Write_callback)(int, const void*, size_t);
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
@@ -56,7 +59,7 @@ bool is_internet_socket(int fd) {
     return addr.sa_family != AF_UNIX;
 }
 
-int is_valid(const bson_t* bson);
+bool is_valid(const bson_t* bson);
 
 int establish_ipc() {
     int ipc_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -150,7 +153,7 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     return res;
 }
 
-SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
+ssize_t read(int sock_fd, void *buf, size_t count){
     callbacks_init();
 
     if (!is_internet_socket(sock_fd)){
@@ -311,7 +314,7 @@ SO_EXPORT int close(int fd){
     return res;
 }
 
-int is_valid(const bson_t* bson){
+bool is_valid(const bson_t* bson){
     if (!bson_validate(
         bson, 
         BSON_VALIDATE_UTF8 
@@ -321,7 +324,7 @@ int is_valid(const bson_t* bson){
         | BSON_VALIDATE_EMPTY_KEYS,
         NULL)) {
             real_write(2, "Response bson is not valid\n", 27);
-            return -1;
+            return false;
         } 
-    return 0;
+    return true;
 }
