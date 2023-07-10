@@ -6,7 +6,6 @@ type ConnectRequest struct {
 	Ip     uint32 `bson:"ip"`
 }
 
-// TODO написать чтобы буковки сериализовывались с сохранением регистра
 type ConnectResponse struct {
 	ResultCode int32 `bson:"result_code"`
 }

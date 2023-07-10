@@ -18,16 +18,25 @@ func processRead(request *ReadRequest) (*ReadResponse, error) {
 
 func processConnect(request *ConnectRequest) (*ConnectResponse, error) {
 	log.Println(request)
-	return &ConnectResponse{-1}, nil
+	return &ConnectResponse{0}, nil
 }
 
-func HandleRequest(request []byte) ([]byte, error) {
-	err := bson.Raw(request).Validate()
+var errorWriteResponse = WriteResponse{BytesWritten: -1}
+var errorWriteResponseBytes, _ = bson.Marshal(errorWriteResponse)
+
+var errorReadResponse = ReadResponse{Buffer: "", BytesRead: -1}
+var errorReadResponseBytes, _ = bson.Marshal(errorReadResponse)
+
+var errorConnectResponse = ConnectResponse{ResultCode: -1}
+var errorConnectResponseBytes, _ = bson.Marshal(errorConnectResponse)
+
+func HandleRequest(requestBytes []byte) ([]byte, error) {
+	err := bson.Raw(requestBytes).Validate()
 	if err != nil {
 		return nil, err
 	}
 
-	callValue := bson.Raw(request).Lookup("call")
+	callValue := bson.Raw(requestBytes).Lookup("call")
 	call, ok := callValue.StringValueOK()
 	if !ok {
 		log.Println(callValue.Value)
@@ -39,25 +48,25 @@ func HandleRequest(request []byte) ([]byte, error) {
 	switch call {
 	case "write":
 		var writeRequest WriteRequest
-		err = bson.Unmarshal(request, &writeRequest)
+		err = bson.Unmarshal(requestBytes, &writeRequest)
 		if err != nil {
-			return nil, err
+			return errorWriteResponseBytes, err
 		}
 
 		response, err = processWrite(&writeRequest)
 	case "read":
 		var readRequest ReadRequest
-		err = bson.Unmarshal(request, &readRequest)
+		err = bson.Unmarshal(requestBytes, &readRequest)
 		if err != nil {
-			return nil, err
+			return errorReadResponseBytes, err
 		}
 
 		response, err = processRead(&readRequest)
 	case "connect":
 		var connectRequest ConnectRequest
-		err = bson.Unmarshal(request, &connectRequest)
+		err = bson.Unmarshal(requestBytes, &connectRequest)
 		if err != nil {
-			return nil, err
+			return errorConnectResponseBytes, err
 		}
 
 		response, err = processConnect(&connectRequest)
@@ -66,12 +75,9 @@ func HandleRequest(request []byte) ([]byte, error) {
 	}
 
 	if err != nil {
-		return nil, err
+		log.Println(err)
 	}
 
-	return bson.Marshal(response)
-}
-
-func main() {
-
+	responseBytes, _ := bson.Marshal(response)
+	return responseBytes, err
 }

@@ -33,8 +33,10 @@ func handleIpc() {
 		}
 
 		responseBuf, err := ipc.HandleRequest(requestBuf)
-		if err != nil {
+		if responseBuf == nil && err != nil {
 			log.Fatalln(err)
+		} else if err != nil {
+			log.Println(err, ". Returning error response.")
 		}
 
 		_, err = conn.Write(responseBuf)
