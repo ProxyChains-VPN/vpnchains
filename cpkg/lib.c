@@ -159,11 +159,8 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
     callbacks_init();
 
     if (!is_internet_socket(sock_fd)){
-        fprintf(stderr, "HERE %d\n\n", sock_fd);
         return real_read(sock_fd, buf, count);
     }
-
-    printf("%s", 123);
 
     int ipc_sock_fd = establish_ipc();
     if (ipc_sock_fd == -1) {
@@ -176,13 +173,6 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
     BSON_APPEND_INT32(&bson_request, "fd", sock_fd);
     BSON_APPEND_INT32(&bson_request, "bytes_to_read", count);
 
-
-//    struct sockaddr addr;
-//    getsockname(fd, &addr, sizeof(addr));
-//    return addr.sa_family != AF_UNIX;
-
-    real_write(2, bson_get_data(&bson_request), bson_request.len);
-
     int bytes_written = real_write(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (bytes_written == -1) {
         perror("Write() to tmp socket failed");
@@ -193,22 +183,24 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
 
     bson_reader_t* reader = bson_reader_new_from_fd(ipc_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
-    if(!is_valid(bson_response)){
+    if (!is_valid(bson_response)){
         return -1;
     }
+
     bson_iter_t iter;
     bson_iter_t bytes_read;
     bson_iter_t buffer;
-    if(!bson_iter_init(&iter, bson_response)){
+
+    if (!bson_iter_init(&iter, bson_response)){
         perror("Failed to parse bson: bson_iter_init");
         return -1;
     }
-    if(!bson_iter_find_descendant(&iter, "bytes_read", &bytes_read)){
-        perror("Failed to parse bson: can't find 'bytes_read'");
+    if (!bson_iter_find_descendant(&iter, "buffer", &buffer)){
+        perror("Failed to parse bson: can't find 'buffer'");
         return -1;
     }
-    if(!bson_iter_find_descendant(&iter, "buffer", &buffer)){
-        perror("Failed to parse bson: can't find 'buffer'");
+    if (!bson_iter_find_descendant(&iter, "bytes_read", &bytes_read)){
+        perror("Failed to parse bson: can't find 'bytes_read'");
         return -1;
     }
     int n = bson_iter_int32(&bytes_read);

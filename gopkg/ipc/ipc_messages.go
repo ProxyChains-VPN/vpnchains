@@ -16,7 +16,7 @@ type ReadRequest struct {
 }
 
 type ReadResponse struct {
-	Buffer    string `bson:"buffer"`
+	Buffer    []byte `bson:"buffer"`
 	BytesRead int32  `bson:"bytes_read"`
 }
 
