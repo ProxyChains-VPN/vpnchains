@@ -40,7 +40,7 @@ func decodeKey(key string) (string, error) {
 	return hex.EncodeToString(decodedKey), nil
 }
 
-func (config *WireguardConfig) AddressStringToNetipAddr() ([]netip.Addr, error) {
+func (config *WireguardConfig) AddressStringToNetipAddr() ([]netip.Addr, error) { // TODO rename
 	var res []netip.Addr
 	for _, addr := range config.Interface.Address {
 		netipAddr, err := netip.ParseAddr(addr)
@@ -52,7 +52,7 @@ func (config *WireguardConfig) AddressStringToNetipAddr() ([]netip.Addr, error) 
 	return res, nil
 }
 
-func (config *WireguardConfig) DNSStringToNetipAddr() ([]netip.Addr, error) {
+func (config *WireguardConfig) DnsStringToNetipAddr() ([]netip.Addr, error) { // TODO rename
 	var res []netip.Addr
 	for _, addr := range config.Interface.DNS {
 		netipAddr, err := netip.ParseAddr(addr)
@@ -64,7 +64,7 @@ func (config *WireguardConfig) DNSStringToNetipAddr() ([]netip.Addr, error) {
 	return res, nil
 }
 
-func (config *WireguardConfig) ToString() (string, error) {
+func (config *WireguardConfig) UapiConfig() (string, error) {
 	privateKeyDecoded, err := decodeKey(config.Interface.PrivateKey)
 	if err != nil {
 		return "", err

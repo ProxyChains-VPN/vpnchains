@@ -1,4 +1,4 @@
-package vpn
+package overrides
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"strconv"
 	"syscall"
+	"vpnchains/gopkg/vpn"
 )
 
 func Connect(fd int, sa syscall.Sockaddr) (err error) {
@@ -52,7 +53,7 @@ allowed_ip=%s
 	if err != nil {
 		return err
 	}
-	conns[fd] = &socket
+	vpn.tcpConnsMap[fd] = &socket
 	return nil
 }
 
