@@ -7,8 +7,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"os/signal"
-	"syscall"
 )
 
 const DefaultSockAddr = "/tmp/vpnchains.socket"
@@ -21,13 +19,17 @@ func errorMsg(path string) string {
 }
 
 func handleIpc(ready chan struct{}) {
-	_ = os.Remove(DefaultSockAddr)
+	err := os.Remove(DefaultSockAddr)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	var buf = make([]byte, BufSize)
 
 	conn := ipc.NewConnection(DefaultSockAddr)
 	handler := func(conn net.Conn) {
-		var requestBuf = make([]byte, BufSize)
-		n, err := conn.Read(requestBuf)
-		requestBuf = requestBuf[:n]
+		n, err := conn.Read(buf)
+		requestBuf := buf[:n]
 
 		if err != nil {
 			log.Fatalln(err)
@@ -35,34 +37,34 @@ func handleIpc(ready chan struct{}) {
 
 		responseBuf, err := ipc.HandleRequest(requestBuf)
 		if responseBuf == nil && err != nil {
-			log.Fatalln(err)
+			log.Fatalln(err) // вроде как невозможно
 		} else if err != nil {
 			log.Println(err, ". Returning error response.")
 		}
 
 		_, err = conn.Write(responseBuf)
 		if err != nil {
-			log.Fatalln(err)
+			log.Println(err)
 		}
 	}
 
 	ready <- struct{}{}
-	err := conn.Listen(handler)
+	err = conn.Listen(handler)
 	if err != nil {
 		log.Println("sldfadsf")
 		log.Fatalln(err)
 	}
 }
 
-func sigintHandlerGoroutine() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		os.Remove(DefaultSockAddr)
-		os.Exit(1)
-	}()
-}
+//func sigintHandlerGoroutine() {
+//	c := make(chan os.Signal, 1)
+//	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+//	go func() {
+//		<-c
+//		os.Remove(DefaultSockAddr)
+//		os.Exit(1)
+//	}()
+//}
 
 func main() {
 	//args := os.Args
