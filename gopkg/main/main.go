@@ -75,7 +75,7 @@ func main() {
 
 	tunnel, err := wireguard.WireguardTunnelFromConfig(config, Mtu)
 	if err != nil {
-		return
+		log.Fatalln(err)
 	}
 	defer tunnel.CloseTunnel()
 

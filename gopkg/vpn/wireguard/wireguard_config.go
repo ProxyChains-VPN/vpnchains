@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"gopkg.in/ini.v1"
 	"net/netip"
+	"strings"
 )
 
 type WireguardConfig struct {
@@ -40,10 +41,24 @@ func decodeKey(key string) (string, error) {
 	return hex.EncodeToString(decodedKey), nil
 }
 
+func splitAddress(address string) (ip, port string, err error) {
+	arr := strings.SplitN(address, "/", 3)
+	if len(arr) != 2 {
+		return "", "", nil
+	}
+	return arr[0], arr[1], nil
+}
+
 func (config *WireguardConfig) AddressStringToNetipAddr() ([]netip.Addr, error) { // TODO rename
 	var res []netip.Addr
 	for _, addr := range config.Interface.Address {
-		netipAddr, err := netip.ParseAddr(addr)
+		ip, _, err := splitAddress(addr)
+
+		if err != nil {
+			return nil, err
+		}
+
+		netipAddr, err := netip.ParseAddr(ip)
 		if err != nil {
 			return nil, err
 		}
