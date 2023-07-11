@@ -116,12 +116,11 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     bson_reader_t* reader = bson_reader_new_from_fd(ipc_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
-
-    real_write(2, bson_get_data(bson_response), bson_request.len);
-
-    if(!is_valid(bson_response)){
+    if (!is_valid(bson_response)){
         return -1;
     }
+
+    real_write(2, bson_get_data(bson_response), bson_request.len);
 
     int res = -1;
 
@@ -138,7 +137,7 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     }
 
     if (!BSON_ITER_HOLDS_INT32(&result_code)){
-        perror("Failed to parse bson: 'result code' is not int32");
+        perror("Failed to parse bson: 'result_code' is not int32");
         return -1;
     }
 
@@ -188,6 +187,8 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
     bson_iter_t iter;
     bson_iter_t bson_bytes_read;
     bson_iter_t bson_buffer;
+    int bytes_read;
+    void *binary_data;
 
     if (!bson_iter_init(&iter, bson_response)){
         perror("Failed to parse bson: bson_iter_init");
@@ -201,16 +202,23 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
         perror("Failed to parse bson: can't find 'bytes_read'");
         return -1;
     }
-    int bytes_read = bson_iter_int32(&bson_bytes_read);
+    if (!BSON_ITER_HOLDS_INT32(&bson_bytes_read)){
+        perror("Failed to parse bson: 'bytes_read' is not int32");
+        return -1;
+    }
+    if (!BSON_ITER_HOLDS_BINARY(&bson_buffer)){
+        perror("Failed to parse bson: 'buffer' is not binary");
+        return -1;
+    }
 
-    void *binary_data;
+    bytes_read = bson_iter_int32(&bson_bytes_read);
     bson_iter_binary(&bson_buffer, BSON_SUBTYPE_BINARY, &bytes_read, (const uint8_t**)&binary_data);
     memcpy(buf, binary_data, bytes_read); // TODO надо очистить память???
 
     //bson_destroy(bson_response);
     bson_reader_destroy(reader);
 
-    if(-1 == real_close(ipc_sock_fd)){
+    if (-1 == real_close(ipc_sock_fd)){
         perror("Close() tmp socket failed");
         return -1;
     }
@@ -247,25 +255,33 @@ SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
 
     bson_reader_t* reader = bson_reader_new_from_fd(ipc_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
-    if(!is_valid(bson_response)){
+    if (!is_valid(bson_response)){
         return -1;
     }
+
     bson_iter_t iter;
     bson_iter_t bson_bytes_written;
-    if(!bson_iter_init(&iter, bson_response)){
+    ssize_t bytes_written;
+
+    if (!bson_iter_init(&iter, bson_response)){
         perror("Failed to parse bson: bson_iter_init");
         return -1;
     }
-    if(!bson_iter_find_descendant(&iter, "bytes_written", &bson_bytes_written)){
+    if (!bson_iter_find_descendant(&iter, "bytes_written", &bson_bytes_written)){
         perror("Failed to parse bson: can't find 'bytes_written'");
         return -1;
     }
-    ssize_t bytes_written = bson_iter_int32(&bson_bytes_written);
+    if (!BSON_ITER_HOLDS_INT32(&bson_bytes_written)){
+        perror("Failed to parse bson: 'bytes_written' is not int32");
+        return -1;
+    }
+    
+    bytes_written = bson_iter_int32(&bson_bytes_written);
 
     //bson_destroy(bson_response);
     bson_reader_destroy(reader);
 
-    if(-1 == real_close(ipc_sock_fd)){
+    if (-1 == real_close(ipc_sock_fd)){
         perror("Close() tmp socket failed");
         return -1;
     }
@@ -300,20 +316,25 @@ SO_EXPORT int close(int fd){
 
     bson_reader_t* reader = bson_reader_new_from_fd(ipc_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
-    if(!is_valid(bson_response)){
+    if (!is_valid(bson_response)){
         return -1;
     }
 
     bson_iter_t iter;
     bson_iter_t close_res;
-    if(!bson_iter_init(&iter, bson_response)){
+    if (!bson_iter_init(&iter, bson_response)){
         perror("Failed to parse bson: bson_iter_init");
         return -1;
     }
-    if(!bson_iter_find_descendant(&iter, "close_res", &close_res)){
+    if (!bson_iter_find_descendant(&iter, "close_res", &close_res)){
         perror("Failed to parse bson: can't find 'close_res'");
         return -1;
     }
+    if (!BSON_ITER_HOLDS_INT32(&close_res)){
+        perror("Failed to parse bson: 'close_res' is not int32");
+        return -1;
+    }
+
     int res = bson_iter_int32(&close_res);
     
     bson_reader_destroy(reader);
