@@ -12,13 +12,14 @@ import (
 const DefaultSockAddr = "/tmp/vpnchains.socket"
 const InjectedLibPath = "/usr/lib/libvpnchains_inject.so"
 const BufSize = 100500
+const Mtu = 1420
 
 func errorMsg(path string) string {
 	return "Usage: " + path + " <config> " +
 		"<command> [command args...]"
 }
 
-func handleIpc(ready chan struct{}, config *vpn.WireguardConfig) {
+func handleIpc(ready chan struct{}, tunnel *vpn.WireguardTunnel) {
 	err := os.Remove(DefaultSockAddr)
 	if err != nil {
 		log.Println(err)
@@ -72,6 +73,12 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	tunnel, err := vpn.WireguardTunnelFromConfig(config, Mtu)
+	if err != nil {
+		return
+	}
+	defer tunnel.Close()
+
 	cmd := ipc.CreateCommandWithInjectedLibrary(InjectedLibPath, commandPath, commandArgs)
 
 	ready := make(chan struct{})
@@ -87,6 +94,8 @@ func main() {
 	if err != nil {
 		log.Fatalln("subprocess says, ", err)
 	}
+
+	tunnel.Close()
 
 	err = os.Remove(DefaultSockAddr)
 	if err != nil {

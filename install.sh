@@ -13,20 +13,12 @@ export VPNCHAINS_EXECUTABLE_NAME=vpnchains
 export VPNCHAINS_OUTPUT_DIR=build
 
 LIBBSON_INCLUDE_DIR=/usr/include/libbson-1.0
-LIBBSON_LIB_PATH=/usr/lib/libbson-1.0.so
 
 echo "Running vpnchains install script..."
 echo "Checking requirements"
 
 if [ ! -d "$LIBBSON_INCLUDE_DIR" ]; then
     echo "$LIBBSON_INCLUDE_DIR is not exist; respectively, libbson is not installed globally."
-    echo "One is supplied in mongo-c-driver package (package name may be varied)"
-    echo "Exiting with code 1..."
-    exit 1
-fi
-
-if [ ! -f "$LIBBSON_LIB_PATH" ]; then
-    echo "$LIBBSON_LIB_PATH is not exist; respectively, libbson is not installed globally."
     echo "One is supplied in mongo-c-driver package (package name may be varied)"
     echo "Exiting with code 1..."
     exit 1
