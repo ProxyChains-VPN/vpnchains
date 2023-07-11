@@ -168,7 +168,7 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
     bson_t bson_request = BSON_INITIALIZER;
     BSON_APPEND_UTF8(&bson_request, "call", "read");
     BSON_APPEND_INT32(&bson_request, "fd", sock_fd);
-    BSON_APPEND_INT32(&bson_request, "bytes_to_read", count);
+    BSON_APPEND_INT64(&bson_request, "bytes_to_read", count);
 
     int bytes_written = real_write(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (bytes_written == -1) {
@@ -202,8 +202,8 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
         perror("Failed to parse bson: can't find 'bytes_read'");
         return -1;
     }
-    if (!BSON_ITER_HOLDS_INT32(&bson_bytes_read)){
-        perror("Failed to parse bson: 'bytes_read' is not int32");
+    if (!BSON_ITER_HOLDS_INT64(&bson_bytes_read)){
+        perror("Failed to parse bson: 'bytes_read' is not int64");
         return -1;
     }
     if (!BSON_ITER_HOLDS_BINARY(&bson_buffer)){
@@ -211,7 +211,7 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
         return -1;
     }
 
-    bytes_read = bson_iter_int32(&bson_bytes_read);
+    bytes_read = bson_iter_int64(&bson_bytes_read);
     bson_iter_binary(&bson_buffer, BSON_SUBTYPE_BINARY, &bytes_read, (const uint8_t**)&binary_data);
     memcpy(buf, binary_data, bytes_read); // TODO надо очистить память???
 
@@ -243,7 +243,7 @@ SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
     BSON_APPEND_UTF8(&bson_request, "call", "write");
     BSON_APPEND_INT32(&bson_request, "fd", sock_fd);
     BSON_APPEND_BINARY(&bson_request, "buffer", BSON_SUBTYPE_BINARY, buf, count);
-    BSON_APPEND_INT32(&bson_request, "bytes_to_write", count);
+    BSON_APPEND_INT64(&bson_request, "bytes_to_write", count);
 
     int write_res = real_write(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (write_res == -1) {
@@ -271,12 +271,12 @@ SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
         perror("Failed to parse bson: can't find 'bytes_written'");
         return -1;
     }
-    if (!BSON_ITER_HOLDS_INT32(&bson_bytes_written)){
-        perror("Failed to parse bson: 'bytes_written' is not int32");
+    if (!BSON_ITER_HOLDS_INT64(&bson_bytes_written)){
+        perror("Failed to parse bson: 'bytes_written' is not int64");
         return -1;
     }
     
-    bytes_written = bson_iter_int32(&bson_bytes_written);
+    bytes_written = bson_iter_int64(&bson_bytes_written);
 
     //bson_destroy(bson_response);
     bson_reader_destroy(reader);
