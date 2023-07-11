@@ -1,4 +1,4 @@
-module abobus
+module vpnchains
 
 go 1.20
 

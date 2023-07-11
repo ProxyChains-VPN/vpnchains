@@ -1,12 +1,12 @@
 package main
 
 import (
-	"abobus/gopkg/ipc"
-	"abobus/gopkg/vpn"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"vpnchains/gopkg/ipc"
+	"vpnchains/gopkg/vpn"
 )
 
 const DefaultSockAddr = "/tmp/vpnchains.socket"
