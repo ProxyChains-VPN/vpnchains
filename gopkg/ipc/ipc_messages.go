@@ -20,17 +20,17 @@ type ConnectResponse struct {
 // ssize_t read(int fd, void *buf, size_t count)
 // syscall arguments.
 type ReadRequest struct {
-	Fd          int32 `bson:"fd"`
-	BytesToRead int32 `bson:"bytes_to_read"`
+	Fd          int32  `bson:"fd"`
+	BytesToRead uint64 `bson:"bytes_to_read"`
 }
 
 // ReadResponse A wrapper struct for
 // ssize_t read(int fd, void *buf, size_t count)
 // syscall return value and errno (TODO).
-// (TODO - int -> ssize_t)
+// (TODO - int64 -> ssize_t????)
 type ReadResponse struct {
 	Buffer    []byte `bson:"buffer"`
-	BytesRead int32  `bson:"bytes_read"`
+	BytesRead int64  `bson:"bytes_read"`
 }
 
 // WriteRequest A wrapper struct for
@@ -39,15 +39,15 @@ type ReadResponse struct {
 type WriteRequest struct {
 	Fd           int32  `bson:"fd"`
 	Buffer       []byte `bson:"buffer"`
-	BytesToWrite int32  `bson:"bytes_to_write"`
+	BytesToWrite uint64 `bson:"bytes_to_write"`
 }
 
 // WriteResponse A wrapper struct for
 // ssize_t write(int fd, const void buf[.count], size_t count)
 // syscall return value and errno (TODO).
-// (TODO - int -> ssize_t)
+// (TODO - int64 -> ssize_t????)
 type WriteResponse struct {
-	BytesWritten int32 `bson:"bytes_written"`
+	BytesWritten int64 `bson:"bytes_written"`
 }
 
 // CloseRequest A wrapper struct for
