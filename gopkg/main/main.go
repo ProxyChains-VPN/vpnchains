@@ -2,6 +2,7 @@ package main
 
 import (
 	"abobus/gopkg/ipc"
+	"abobus/gopkg/vpn"
 	"fmt"
 	"log"
 	"net"
@@ -64,28 +65,34 @@ func sigintHandlerGoroutine() {
 }
 
 func main() {
-	args := os.Args
-	if len(args) < 2 {
-		fmt.Println(errorMsg(args[0]))
-		os.Exit(0)
-	}
+	//args := os.Args
+	//if len(args) < 2 {
+	//	fmt.Println(errorMsg(args[0]))
+	//	os.Exit(0)
+	//}
+	//
+	//commandPath := args[1]
+	//commandArgs := args[2:]
+	//
+	//cmd := ipc.CreateCommandWithInjectedLibrary(InjectedLibPath, commandPath, commandArgs)
+	//
+	//ready := make(chan struct{})
+	//go handleIpc(ready)
+	//
+	//<-ready
+	//err := cmd.Start()
+	//if err != nil {
+	//	log.Fatalln(err)
+	//}
+	//
+	//err = cmd.Wait()
+	//if err != nil {
+	//	log.Fatalln(83, err)
+	//}
 
-	commandPath := args[1]
-	commandArgs := args[2:]
-
-	cmd := ipc.CreateCommandWithInjectedLibrary(InjectedLibPath, commandPath, commandArgs)
-
-	ready := make(chan struct{})
-	go handleIpc(ready)
-
-	<-ready
-	err := cmd.Start()
+	res, err := vpn.WireguardConfigFromFile("wg0.conf")
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	err = cmd.Wait()
-	if err != nil {
-		log.Fatalln(83, err)
-	}
+	fmt.Println(res.ToString())
 }
