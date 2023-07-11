@@ -14,14 +14,14 @@ const InjectedLibPath = "/usr/lib/libvpnchains_inject.so"
 const BufSize = 100500
 
 func errorMsg(path string) string {
-	return "Usage: " + path +
-		" <command> [command args...]"
+	return "Usage: " + path + " <config> " +
+		"<command> [command args...]"
 }
 
 func handleIpc(ready chan struct{}, config *vpn.WireguardConfig) {
 	err := os.Remove(DefaultSockAddr)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
 	}
 
 	var buf = make([]byte, BufSize)
