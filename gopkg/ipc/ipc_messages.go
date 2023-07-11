@@ -50,16 +50,17 @@ type WriteResponse struct {
 	BytesWritten int64 `bson:"bytes_written"`
 }
 
-// CloseRequest A wrapper struct for
-// int close(int fd)
-// syscall arguments.
-type CloseRequest struct {
-	Fd int32 `bson:"fd"`
-}
-
-// CloseResponse A wrapper struct for
-// int close(int fd)
-// syscall return value and errno (TODO).
-type CloseResponse struct {
-	CloseResult int32 `bson:"close_res"`
-}
+//
+//// CloseRequest A wrapper struct for
+//// int close(int fd)
+//// syscall arguments.
+//type CloseRequest struct {
+//	Fd int32 `bson:"fd"`
+//}
+//
+//// CloseResponse A wrapper struct for
+//// int close(int fd)
+//// syscall return value and errno (TODO).
+//type CloseResponse struct {
+//	CloseResult int32 `bson:"close_res"`
+//}
