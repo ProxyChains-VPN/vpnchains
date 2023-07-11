@@ -1,4 +1,4 @@
-package vpn
+package wireguard
 
 import (
 	"golang.zx2c4.com/wireguard/conn"
@@ -58,7 +58,7 @@ func WireguardTunnelFromConfig(config *WireguardConfig, mtu int) (*WireguardTunn
 	return NewWireguardTunnel(localAddresses, dnsAddresses, mtu, uapi)
 }
 
-func (tunnel *WireguardTunnel) Close() {
+func (tunnel *WireguardTunnel) CloseTunnel() {
 	tunnel.dev.Close()
 }
 
@@ -72,8 +72,4 @@ func (tunnel *WireguardTunnel) Read(fd int, p []byte) (n int, err error) {
 
 func (tunnel *WireguardTunnel) Write(fd int, p []byte) (n int, err error) {
 	return 0, nil
-}
-
-func (tunnel *WireguardTunnel) GetFd() int {
-	return 0
 }

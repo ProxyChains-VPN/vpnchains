@@ -6,7 +6,7 @@ import (
 	"net"
 	"os"
 	"vpnchains/gopkg/ipc"
-	"vpnchains/gopkg/vpn"
+	"vpnchains/gopkg/vpn/wireguard"
 )
 
 const DefaultSockAddr = "/tmp/vpnchains.socket"
@@ -19,7 +19,7 @@ func errorMsg(path string) string {
 		"<command> [command args...]"
 }
 
-func handleIpc(ready chan struct{}, tunnel *vpn.WireguardTunnel) {
+func handleIpc(ready chan struct{}, tunnel *wireguard.WireguardTunnel) {
 	err := os.Remove(DefaultSockAddr)
 	if err != nil {
 		log.Println(err)
@@ -68,21 +68,21 @@ func main() {
 	commandPath := args[2]
 	commandArgs := args[3:]
 
-	config, err := vpn.WireguardConfigFromFile(wireguardConfigPath)
+	config, err := wireguard.WireguardConfigFromFile(wireguardConfigPath)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	tunnel, err := vpn.WireguardTunnelFromConfig(config, Mtu)
+	tunnel, err := wireguard.WireguardTunnelFromConfig(config, Mtu)
 	if err != nil {
 		return
 	}
-	defer tunnel.Close()
+	defer tunnel.CloseTunnel()
 
 	cmd := ipc.CreateCommandWithInjectedLibrary(InjectedLibPath, commandPath, commandArgs)
 
 	ready := make(chan struct{})
-	go handleIpc(ready, config)
+	go handleIpc(ready, tunnel)
 
 	<-ready
 	err = cmd.Start()
@@ -95,7 +95,7 @@ func main() {
 		log.Fatalln("subprocess says, ", err)
 	}
 
-	tunnel.Close()
+	tunnel.CloseTunnel()
 
 	err = os.Remove(DefaultSockAddr)
 	if err != nil {
