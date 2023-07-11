@@ -18,7 +18,7 @@ func errorMsg(path string) string {
 		" <command> [command args...]"
 }
 
-func handleIpc(ready chan struct{}) {
+func handleIpc(ready chan struct{}, config *vpn.WireguardConfig) {
 	err := os.Remove(DefaultSockAddr)
 	if err != nil {
 		log.Fatalln(err)
@@ -56,45 +56,40 @@ func handleIpc(ready chan struct{}) {
 	}
 }
 
-//func sigintHandlerGoroutine() {
-//	c := make(chan os.Signal, 1)
-//	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-//	go func() {
-//		<-c
-//		os.Remove(DefaultSockAddr)
-//		os.Exit(1)
-//	}()
-//}
-
 func main() {
-	//args := os.Args
-	//if len(args) < 2 {
-	//	fmt.Println(errorMsg(args[0]))
-	//	os.Exit(0)
-	//}
-	//
-	//commandPath := args[1]
-	//commandArgs := args[2:]
-	//
-	//cmd := ipc.CreateCommandWithInjectedLibrary(InjectedLibPath, commandPath, commandArgs)
-	//
-	//ready := make(chan struct{})
-	//go handleIpc(ready)
-	//
-	//<-ready
-	//err := cmd.Start()
-	//if err != nil {
-	//	log.Fatalln(err)
-	//}
-	//
-	//err = cmd.Wait()
-	//if err != nil {
-	//	log.Fatalln(83, err)
-	//}
+	args := os.Args
+	if len(args) < 3 {
+		fmt.Println(errorMsg(args[0]))
+		os.Exit(0)
+	}
 
-	res, err := vpn.WireguardConfigFromFile("wg0.conf")
+	wireguardConfigPath := args[1]
+	commandPath := args[2]
+	commandArgs := args[3:]
+
+	config, err := vpn.WireguardConfigFromFile(wireguardConfigPath)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Println(res.ToString())
+
+	cmd := ipc.CreateCommandWithInjectedLibrary(InjectedLibPath, commandPath, commandArgs)
+
+	ready := make(chan struct{})
+	go handleIpc(ready, config)
+
+	<-ready
+	err = cmd.Start()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		log.Fatalln("subprocess says, ", err)
+	}
+
+	err = os.Remove(DefaultSockAddr)
+	if err != nil {
+		log.Println(err)
+	}
 }
