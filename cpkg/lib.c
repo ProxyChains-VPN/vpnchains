@@ -114,11 +114,8 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     bson_destroy(&bson_request);
 
-//    real_write(2, "connect\n", 8);
-
     bson_reader_t* reader = bson_reader_new_from_fd(ipc_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
-//    bson_reader_destroy(reader);
 
     real_write(2, bson_get_data(bson_response), bson_request.len);
 
@@ -150,8 +147,9 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
         perror("Close() tmp socket failed");
     }
 
-//    bson_destroy(&bson_response);
+    //bson_destroy(bson_response);
     bson_reader_destroy(reader);
+    
     return res;
 }
 
@@ -188,28 +186,28 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
     }
 
     bson_iter_t iter;
-    bson_iter_t bytes_read;
-    bson_iter_t buffer;
+    bson_iter_t bson_bytes_read;
+    bson_iter_t bson_buffer;
 
     if (!bson_iter_init(&iter, bson_response)){
         perror("Failed to parse bson: bson_iter_init");
         return -1;
     }
-    if (!bson_iter_find_descendant(&iter, "buffer", &buffer)){
+    if (!bson_iter_find_descendant(&iter, "buffer", &bson_buffer)){
         perror("Failed to parse bson: can't find 'buffer'");
         return -1;
     }
-    if (!bson_iter_find_descendant(&iter, "bytes_read", &bytes_read)){
+    if (!bson_iter_find_descendant(&iter, "bytes_read", &bson_bytes_read)){
         perror("Failed to parse bson: can't find 'bytes_read'");
         return -1;
     }
-    int n = bson_iter_int32(&bytes_read);
+    int bytes_read = bson_iter_int32(&bson_bytes_read);
 
-    void *newbuf;
-    bson_iter_binary(&buffer, BSON_SUBTYPE_BINARY, &n, (const uint8_t**)&newbuf);
-    memcpy(buf, newbuf, n); // TODO надо очистить память???
+    void *binary_data;
+    bson_iter_binary(&bson_buffer, BSON_SUBTYPE_BINARY, &bytes_read, (const uint8_t**)&binary_data);
+    memcpy(buf, binary_data, bytes_read); // TODO надо очистить память???
 
-    bson_destroy(bson_response);
+    //bson_destroy(bson_response);
     bson_reader_destroy(reader);
 
     if(-1 == real_close(ipc_sock_fd)){
@@ -217,7 +215,7 @@ SO_EXPORT ssize_t read(int sock_fd, void *buf, size_t count){
         return -1;
     }
 
-    return n;
+    return bytes_read;
 }
 
 SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
@@ -253,18 +251,18 @@ SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
         return -1;
     }
     bson_iter_t iter;
-    bson_iter_t bytes_written;
+    bson_iter_t bson_bytes_written;
     if(!bson_iter_init(&iter, bson_response)){
         perror("Failed to parse bson: bson_iter_init");
         return -1;
     }
-    if(!bson_iter_find_descendant(&iter, "bytes_written", &bytes_written)){
+    if(!bson_iter_find_descendant(&iter, "bytes_written", &bson_bytes_written)){
         perror("Failed to parse bson: can't find 'bytes_written'");
         return -1;
     }
-    ssize_t res = bson_iter_int32(&bytes_written);
+    ssize_t bytes_written = bson_iter_int32(&bson_bytes_written);
 
-//    bson_destroy(bson_response);
+    //bson_destroy(bson_response);
     bson_reader_destroy(reader);
 
     if(-1 == real_close(ipc_sock_fd)){
@@ -272,7 +270,7 @@ SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
         return -1;
     }
 
-    return res;
+    return bytes_written;
 }
 
 SO_EXPORT int close(int fd){
@@ -317,6 +315,9 @@ SO_EXPORT int close(int fd){
         return -1;
     }
     int res = bson_iter_int32(&close_res);
+    
+    bson_reader_destroy(reader);
+    //bson_destroy(bson_response);
 
     return res;
 }
