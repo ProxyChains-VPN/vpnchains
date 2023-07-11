@@ -19,7 +19,7 @@ func (handler *RequestHandler) processConnect(request *ipc.ConnectRequest) (*ipc
 	sa.Addr[2] = byte(request.Ip >> 8)
 	sa.Addr[3] = byte(request.Ip)
 	sa.Port = int(request.Port)
-	connect4(request.SockFd, &sa)*/
+	Connect(int(request.SockFd), &sa)*/
 
 	return &ipc.ConnectResponse{0}, nil
 }
