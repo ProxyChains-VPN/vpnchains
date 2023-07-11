@@ -9,9 +9,9 @@ import (
 )
 
 type WireguardTunnel struct {
-	dev      *device.Device // TODO а оно пригодится???
-	net      *netstack.Net
-	tcpFdMap map[int]*net.Conn
+	Dev      *device.Device // TODO а оно пригодится???
+	Net      *netstack.Net
+	TcpFdMap map[int]*net.Conn
 	//config   *WireguardConfig
 } // TODO инкапсулировать инкапсулируемое
 
@@ -32,9 +32,9 @@ func NewWireguardTunnel(localAddresses, dnsAddresses []netip.Addr, mtu int, uapi
 	}
 
 	return &WireguardTunnel{
-		dev:      dev,
-		net:      tnet,
-		tcpFdMap: make(map[int]*net.Conn),
+		Dev:      dev,
+		Net:      tnet,
+		TcpFdMap: make(map[int]*net.Conn),
 	}, nil
 }
 
@@ -58,5 +58,5 @@ func WireguardTunnelFromConfig(config *WireguardConfig, mtu int) (*WireguardTunn
 }
 
 func (tunnel *WireguardTunnel) CloseTunnel() {
-	tunnel.dev.Close()
+	tunnel.Dev.Close()
 }
