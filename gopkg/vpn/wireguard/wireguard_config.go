@@ -1,4 +1,4 @@
-package vpn
+package wireguard
 
 import (
 	"encoding/base64"
