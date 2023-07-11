@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"vpnchains/gopkg/ipc"
+	"vpnchains/gopkg/ipc/ipc_request_handling"
 	"vpnchains/gopkg/vpn/wireguard"
 )
 
@@ -28,7 +29,9 @@ func handleIpc(ready chan struct{}, tunnel *wireguard.WireguardTunnel) {
 	var buf = make([]byte, BufSize)
 
 	conn := ipc.NewConnection(DefaultSockAddr)
-	handler := func(conn net.Conn) {
+	requestHandler := ipc_request_handling.NewRequestHandler(tunnel) // todo rename???
+
+	ipcConnectionHandler := func(conn net.Conn) {
 		n, err := conn.Read(buf)
 		requestBuf := buf[:n]
 
@@ -36,7 +39,7 @@ func handleIpc(ready chan struct{}, tunnel *wireguard.WireguardTunnel) {
 			log.Fatalln(err)
 		}
 
-		responseBuf, err := ipc.HandleRequest(requestBuf)
+		responseBuf, err := requestHandler.HandleRequest(requestBuf)
 		if responseBuf == nil && err != nil {
 			log.Fatalln(err) // вроде как невозможно
 		} else if err != nil {
@@ -50,7 +53,7 @@ func handleIpc(ready chan struct{}, tunnel *wireguard.WireguardTunnel) {
 	}
 
 	ready <- struct{}{}
-	err = conn.Listen(handler)
+	err = conn.Listen(ipcConnectionHandler)
 	if err != nil {
 		log.Println("sldfadsf")
 		log.Fatalln(err)
