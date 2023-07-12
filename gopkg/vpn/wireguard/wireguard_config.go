@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"gopkg.in/ini.v1"
+	"log"
 	"net/netip"
 	"strings"
 )
@@ -18,7 +19,7 @@ type WireguardConfig struct {
 		Endpoint     string   `ini:"Endpoint"`
 		AllowedIPs   []string `ini:"AllowedIPs"`
 		PublicKey    string   `ini:"PublicKey"`
-		PresharedKey string   `ini:"PreSharedKey"`
+		PresharedKey string   `ini:"PresharedKey"`
 	}
 }
 
@@ -96,12 +97,16 @@ func (config *WireguardConfig) Uapi() (string, error) {
 	var res string
 	res += `private_key=` + privateKeyDecoded + "\n"
 	res += `public_key=` + publicKeyDecoded + "\n"
-	res += `preshared_key=` + presharedKeyDecoded + "\n"
+	if presharedKeyDecoded != "" {
+		res += `preshared_key=` + presharedKeyDecoded + "\n"
+	}
 
 	for _, addr := range config.Peer.AllowedIPs {
 		res += `allowed_ip=` + addr + "\n"
 	}
 
 	res += `endpoint=` + config.Peer.Endpoint + "\n"
+
+	log.Println(res)
 	return res, nil
 }

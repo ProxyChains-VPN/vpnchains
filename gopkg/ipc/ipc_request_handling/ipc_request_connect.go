@@ -12,20 +12,20 @@ var errorConnectResponseBytes, _ = bson.Marshal(errorConnectResponse)
 
 func unixIpToSockaddr(ip uint32, port uint16) syscall.SockaddrInet4 {
 	var sa syscall.SockaddrInet4
-	sa.Addr[0] = byte(ip >> 24)
-	sa.Addr[1] = byte(ip >> 16)
-	sa.Addr[2] = byte(ip >> 8)
-	sa.Addr[3] = byte(ip)
+	sa.Addr[3] = byte(ip >> 24)
+	sa.Addr[2] = byte(ip >> 16)
+	sa.Addr[1] = byte(ip >> 8)
+	sa.Addr[0] = byte(ip)
 	sa.Port = int(port)
 
-	log.Println(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3], ":", port)
 	return sa
 }
 
 func (handler *RequestHandler) processConnect(request *ipc.ConnectRequest) (*ipc.ConnectResponse, error) {
 	log.Println("connect", request)
-	sa := unixIpToSockaddr(request.Ip, request.Port)
+	sa := unixIpToSockaddr(uint32(request.Ip), request.Port)
 	err := handler.tunnel.Connect(request.SockFd, &sa)
+	log.Println("connect ended")
 	if err != nil {
 		return &errorConnectResponse, err
 	}
