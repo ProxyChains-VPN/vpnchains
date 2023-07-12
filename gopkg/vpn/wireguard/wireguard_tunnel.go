@@ -59,6 +59,6 @@ func WireguardTunnelFromConfig(config *WireguardConfig, mtu int) (*WireguardTunn
 	return NewWireguardTunnel(localAddresses, dnsAddresses, mtu, uapi)
 }
 
-func (tunnel *WireguardTunnel) CloseTunnel() {
-	tunnel.Dev.Close()
+func (tun *WireguardTunnel) CloseTunnel() {
+	tun.Dev.Close()
 }
