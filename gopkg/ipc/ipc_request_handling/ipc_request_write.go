@@ -12,6 +12,7 @@ var errorWriteResponseBytes, _ = bson.Marshal(errorWriteResponse)
 func (handler *RequestHandler) processWrite(request *ipc.WriteRequest) (*ipc.WriteResponse, error) {
 	log.Println("write", request)
 	bytesWritten, err := handler.tunnel.Write(request.Fd, request.Buffer[:request.BytesToWrite])
+	log.Println("BYTES WRITTEN", bytesWritten)
 	if err != nil {
 		return &errorWriteResponse, err
 	}
