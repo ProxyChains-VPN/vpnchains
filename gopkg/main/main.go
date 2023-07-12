@@ -7,6 +7,7 @@ import (
 	"os"
 	"vpnchains/gopkg/ipc"
 	"vpnchains/gopkg/ipc/ipc_request_handling"
+	"vpnchains/gopkg/vpn"
 	"vpnchains/gopkg/vpn/wireguard"
 )
 
@@ -20,7 +21,7 @@ func errorMsg(path string) string {
 		"<command> [command args...]"
 }
 
-func handleIpc(ready chan struct{}, tunnel *wireguard.WireguardTunnel) {
+func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 	err := os.Remove(DefaultSockAddr)
 	if err != nil {
 		log.Println(err)
