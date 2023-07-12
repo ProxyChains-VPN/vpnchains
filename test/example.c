@@ -12,8 +12,8 @@ int main() {
     struct sockaddr_in server; /* server address                      */
     int s;                     /* client socket                       */
 
-    hostnm = gethostbyname("lib.ru");
-    port = 80;
+    hostnm = gethostbyname("10.66.66.1");
+    port = 45454;
 
     server.sin_family      = AF_INET;
     server.sin_port        = htons(port);
@@ -32,6 +32,10 @@ int main() {
     }
 
     write(s, "hellosber\n", 11);
+
+    char buf1[1000];
+    int res = read(s, buf1, 1000);
+    write(2, buf1, res);
 
 
 //    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
