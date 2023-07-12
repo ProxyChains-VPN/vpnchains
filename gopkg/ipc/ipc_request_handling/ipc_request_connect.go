@@ -18,12 +18,12 @@ func unixIpToSockaddr(ip uint32, port uint16) syscall.SockaddrInet4 {
 	sa.Addr[3] = byte(ip)
 	sa.Port = int(port)
 
-	log.Println(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])
+	log.Println(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3], ":", port)
 	return sa
 }
 
 func (handler *RequestHandler) processConnect(request *ipc.ConnectRequest) (*ipc.ConnectResponse, error) {
-	log.Println(request)
+	log.Println("connect", request)
 	sa := unixIpToSockaddr(request.Ip, request.Port)
 	err := handler.tunnel.Connect(request.SockFd, &sa)
 	if err != nil {

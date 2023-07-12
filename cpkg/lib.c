@@ -289,7 +289,7 @@ SO_EXPORT ssize_t write(int sock_fd, const void *buf, size_t count){
     return bytes_written;
 }
 
-SO_EXPORT int close(int fd){
+int close(int fd){
     callbacks_init();
     
     if (!is_internet_socket(fd)){
