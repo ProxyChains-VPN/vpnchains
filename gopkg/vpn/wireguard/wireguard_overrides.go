@@ -16,6 +16,8 @@ func (tunnel *WireguardTunnel) connect4(fd int32, sa *syscall.SockaddrInet4) (er
 		strconv.Itoa(int(sa.Addr[3])) + ":" +
 		strconv.Itoa(sa.Port)
 
+	log.Println(address)
+
 	socket, err := tunnel.Net.Dial("tcp", address) // todo
 	if err != nil {
 		return err

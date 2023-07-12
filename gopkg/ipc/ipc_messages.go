@@ -6,7 +6,7 @@ package ipc
 type ConnectRequest struct {
 	SockFd int32  `bson:"sock_fd"`
 	Port   uint16 `bson:"port"`
-	Ip     uint32 `bson:"ip"`
+	Ip     int32  `bson:"ip"`
 }
 
 // ConnectResponse A wrapper struct for
