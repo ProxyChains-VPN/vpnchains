@@ -44,7 +44,7 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 		if responseBuf == nil && err != nil {
 			log.Fatalln(err) // вроде как невозможно
 		} else if err != nil {
-			log.Println(err, ". Returning error response.")
+			log.Println(err, ". Returning error response (line 47 main).")
 		}
 
 		_, err = conn.Write(responseBuf)
