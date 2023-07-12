@@ -31,11 +31,13 @@ func NewWireguardTunnel(localAddresses, dnsAddresses []netip.Addr, mtu int, uapi
 		return nil, err
 	}
 
-	return &WireguardTunnel{
+	tunnel := &WireguardTunnel{
 		Dev:      dev,
 		Net:      tnet,
 		TcpFdMap: make(map[int]*net.Conn),
-	}, nil
+	}
+
+	return tunnel, nil
 }
 
 func WireguardTunnelFromConfig(config *WireguardConfig, mtu int) (*WireguardTunnel, error) {
