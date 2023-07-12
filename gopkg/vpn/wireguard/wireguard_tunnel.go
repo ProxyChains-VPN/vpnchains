@@ -16,7 +16,7 @@ type WireguardTunnel struct {
 } // TODO инкапсулировать инкапсулируемое
 
 func NewWireguardTunnel(localAddresses, dnsAddresses []netip.Addr, mtu int, uapiConfig string) (*WireguardTunnel, error) {
-	tun, tnet, err := netstack.CreateNetTUN(dnsAddresses, localAddresses, mtu)
+	tun, tnet, err := netstack.CreateNetTUN(localAddresses, dnsAddresses, mtu)
 	if err != nil {
 		return nil, err
 	}
