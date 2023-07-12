@@ -12,34 +12,38 @@ int main() {
     struct sockaddr_in server; /* server address                      */
     int s;                     /* client socket                       */
 
-    hostnm = gethostbyname("1.1.1.1");
-    port = 80;
+    hostnm = gethostbyname("localhost");
+    port = 45454;
 
     server.sin_family      = AF_INET;
     server.sin_port        = htons(port);
     server.sin_addr.s_addr = *((unsigned long *)hostnm->h_addr);
 //
-//    if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-//    {
-//        perror("Socket()");
-//        exit(3);
-//    }
-//
-//    if (connect(s, (struct sockaddr *)&server, sizeof(server)) < 0)
-//    {
-//        perror("Connect()");
-//        exit(4);
-//    }
+    if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        perror("Socket()");
+        exit(3);
+    }
+
+    if (connect(s, (struct sockaddr *)&server, sizeof(server)) < 0)
+    {
+        perror("Connect()");
+        exit(4);
+    }
+
+    write(s, "hellosber\n", 11);
+
+
 //    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 //    write(sockfd, "sdf\n", 5);
-    char buf2[100] = "askjdfnlksadf";
+//    char buf2[100] = "askjdfnlksadf";
 //    int asd = read(0, buf2, 100);
 //     write(1, buf2, asd);
 
-    s = socket(AF_INET, SOCK_STREAM, 0);
-    write(s, "hellosber\n", 11);
-
-    read(s, buf2, 9);
-    write(2, buf2, 6);
-    write(2, "\n", 2);
+//    s = socket(AF_INET, SOCK_STREAM, 0);
+//    write(s, "hellosber\n", 11);
+//
+//    read(s, buf2, 9);
+//    write(2, buf2, 6);
+//    write(2, "\n", 2);
 }

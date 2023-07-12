@@ -18,7 +18,7 @@ type WireguardConfig struct {
 		Endpoint     string   `ini:"Endpoint"`
 		AllowedIPs   []string `ini:"AllowedIPs"`
 		PublicKey    string   `ini:"PublicKey"`
-		PresharedKey string   `ini:"PresharedKey"`
+		PresharedKey string   `ini:"PreSharedKey"`
 	}
 }
 
@@ -79,7 +79,7 @@ func (config *WireguardConfig) DnsStringToNetipAddr() ([]netip.Addr, error) { //
 	return res, nil
 }
 
-func (config *WireguardConfig) UapiConfig() (string, error) {
+func (config *WireguardConfig) Uapi() (string, error) {
 	privateKeyDecoded, err := decodeKey(config.Interface.PrivateKey)
 	if err != nil {
 		return "", err
@@ -88,10 +88,15 @@ func (config *WireguardConfig) UapiConfig() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	presharedKeyDecoded, err := decodeKey(config.Peer.PresharedKey)
+	if err != nil {
+		return "", err
+	}
 
 	var res string
 	res += `private_key=` + privateKeyDecoded + "\n"
 	res += `public_key=` + publicKeyDecoded + "\n"
+	res += `preshared_key=` + presharedKeyDecoded + "\n"
 
 	for _, addr := range config.Peer.AllowedIPs {
 		res += `allowed_ip=` + addr + "\n"

@@ -51,7 +51,7 @@ func WireguardTunnelFromConfig(config *WireguardConfig, mtu int) (*WireguardTunn
 		return nil, err
 	}
 
-	uapi, err := config.UapiConfig()
+	uapi, err := config.Uapi()
 	if err != nil {
 		return nil, err
 	}

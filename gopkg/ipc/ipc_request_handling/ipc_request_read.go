@@ -10,7 +10,7 @@ var errorReadResponse = ipc.ReadResponse{[]byte(""), -1}
 var errorReadResponseBytes, _ = bson.Marshal(errorReadResponse)
 
 func (handler *RequestHandler) processRead(request *ipc.ReadRequest) (*ipc.ReadResponse, error) {
-	log.Println(request)
+	log.Println("read", request)
 	buf := make([]byte, request.BytesToRead)
 	bytesRead, err := handler.tunnel.Read(request.Fd, buf)
 	if err != nil {
