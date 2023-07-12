@@ -61,7 +61,7 @@ func (handler *RequestHandler) HandleRequest(requestBytes []byte) ([]byte, error
 	}
 
 	if err != nil {
-		log.Println(err)
+		log.Println(err, "line 64 ipc_request_handling")
 	}
 
 	responseBytes, _ := bson.Marshal(response) // todo err handling

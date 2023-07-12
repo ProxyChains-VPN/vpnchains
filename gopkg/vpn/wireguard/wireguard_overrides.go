@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func (tunnel *WireguardTunnel) connect4(fd int, sa *syscall.SockaddrInet4) (err error) {
+func (tunnel *WireguardTunnel) connect4(fd int32, sa *syscall.SockaddrInet4) (err error) {
 	address := strconv.Itoa(int(sa.Addr[0])) + "." +
 		strconv.Itoa(int(sa.Addr[1])) + "." +
 		strconv.Itoa(int(sa.Addr[2])) + "." +
@@ -25,7 +25,7 @@ func (tunnel *WireguardTunnel) connect4(fd int, sa *syscall.SockaddrInet4) (err 
 	return nil
 }
 
-func (tunnel *WireguardTunnel) Connect(fd int, sa syscall.Sockaddr) (err error) {
+func (tunnel *WireguardTunnel) Connect(fd int32, sa syscall.Sockaddr) (err error) {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
 		return tunnel.connect4(fd, sa)
@@ -37,7 +37,7 @@ func (tunnel *WireguardTunnel) Connect(fd int, sa syscall.Sockaddr) (err error) 
 	return nil
 }
 
-func (tunnel *WireguardTunnel) Read(fd int, buf []byte) (n int, err error) {
+func (tunnel *WireguardTunnel) Read(fd int32, buf []byte) (n int64, err error) {
 	if tunnel.TcpFdMap[fd] == nil {
 		log.Println("fd not found, not tcp")
 		return 0, nil
@@ -47,13 +47,19 @@ func (tunnel *WireguardTunnel) Read(fd int, buf []byte) (n int, err error) {
 	if err := (*socket).SetReadDeadline(time.Now().Add(time.Second * 10)); err != nil { // todo зачем??
 		return -1, err
 	}
-	return (*socket).Read(buf)
+
+	res, err := (*socket).Read(buf)
+	return int64(res), err
 }
 
-func (tunnel *WireguardTunnel) Write(fd int, buf []byte) (n int, err error) {
+func (tunnel *WireguardTunnel) Write(fd int32, buf []byte) (n int64, err error) {
 	if tunnel.TcpFdMap[fd] == nil {
-		return syscall.Write(fd, buf)
+		log.Println("fd not found, not tcp")
+		return 0, nil
+		//res, err := syscall.Write(int(fd), buf)
+		//return int64(res), err
 	}
 
-	return (*tunnel.TcpFdMap[fd]).Write(buf)
+	res, err := (*tunnel.TcpFdMap[fd]).Write(buf)
+	return int64(res), err
 }
