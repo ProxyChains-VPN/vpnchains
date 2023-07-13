@@ -4,15 +4,12 @@ import (
 	"golang.zx2c4.com/wireguard/conn"
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/tun/netstack"
-	"net"
 	"net/netip"
 )
 
 type WireguardTunnel struct {
-	Dev      *device.Device // TODO а оно пригодится???
-	Net      *netstack.Net
-	TcpFdMap map[int32]*net.Conn
-	//config   *WireguardConfig
+	Dev *device.Device // TODO а оно пригодится???
+	Net *netstack.Net
 } // TODO инкапсулировать инкапсулируемое
 
 func NewWireguardTunnel(localAddresses, dnsAddresses []netip.Addr, mtu int, uapiConfig string) (*WireguardTunnel, error) {
@@ -32,9 +29,8 @@ func NewWireguardTunnel(localAddresses, dnsAddresses []netip.Addr, mtu int, uapi
 	}
 
 	tunnel := &WireguardTunnel{
-		Dev:      dev,
-		Net:      tnet,
-		TcpFdMap: make(map[int32]*net.Conn),
+		Dev: dev,
+		Net: tnet,
 	}
 
 	return tunnel, nil
