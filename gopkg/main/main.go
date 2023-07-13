@@ -5,8 +5,8 @@ import (
 	"log"
 	"net"
 	"os"
-	"vpnchains/gopkg/ipc"
-	"vpnchains/gopkg/ipc/ipc_request_handling"
+	"vpnchains/gopkg/so_ipc"
+	"vpnchains/gopkg/so_ipc/ipc_request_handling"
 	"vpnchains/gopkg/vpn"
 	"vpnchains/gopkg/vpn/wireguard"
 )
@@ -29,7 +29,7 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 
 	var buf = make([]byte, BufSize)
 
-	conn := ipc.NewConnection(DefaultSockAddr)
+	conn := so_ipc.NewConnection(DefaultSockAddr)
 	requestHandler := ipc_request_handling.NewRequestHandler(tunnel) // todo rename???
 
 	ipcConnectionHandler := func(conn net.Conn) {
@@ -83,7 +83,7 @@ func main() {
 	}
 	defer tunnel.CloseTunnel()
 
-	cmd := ipc.CreateCommandWithInjectedLibrary(InjectedLibPath, commandPath, commandArgs)
+	cmd := so_ipc.CreateCommandWithInjectedLibrary(InjectedLibPath, commandPath, commandArgs)
 
 	ready := make(chan struct{})
 	go handleIpc(ready, tunnel)
