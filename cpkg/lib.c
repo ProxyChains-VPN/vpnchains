@@ -346,8 +346,8 @@ int close(int fd){
 
 SO_EXPORT ssize_t recv(int sockfd, void *buf, size_t len,
                                   int flags) {
-    return write(sockfd, buf, len);
-                                  }
+    return read(sockfd, buf, len);
+}
 
 
 SO_EXPORT ssize_t recvfrom(int sockfd, void *buf, size_t len,

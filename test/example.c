@@ -12,8 +12,8 @@ int main() {
     struct sockaddr_in server; /* server address                      */
     int s;                     /* client socket                       */
 
-    hostnm = gethostbyname("10.66.66.1");
-    port = 45454;
+    hostnm = gethostbyname("1.1.1.1");
+    port = 80;
 
     server.sin_family      = AF_INET;
     server.sin_port        = htons(port);
