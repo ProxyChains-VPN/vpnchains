@@ -1,4 +1,4 @@
-package so_ipc
+package ipc
 
 import (
 	"net"
