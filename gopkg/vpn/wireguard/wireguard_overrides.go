@@ -6,7 +6,6 @@ import (
 	"log"
 	"strconv"
 	"syscall"
-	"time"
 )
 
 func (tunnel *WireguardTunnel) connect4(fd int32, sa *syscall.SockaddrInet4) (err error) {
@@ -44,13 +43,13 @@ func (tunnel *WireguardTunnel) Connect(fd int32, sa syscall.Sockaddr) (err error
 func (tunnel *WireguardTunnel) Read(fd int32, buf []byte) (n int64, err error) {
 	if tunnel.TcpFdMap[fd] == nil {
 		log.Println("fd not found, not tcp")
-		return 0, nil
+		return -1, nil
 	}
 
 	socket := tunnel.TcpFdMap[fd]
-	if err := (*socket).SetReadDeadline(time.Now().Add(time.Second * 10)); err != nil { // todo зачем??
-		return -1, err
-	}
+	//if err := (*socket).SetReadDeadline(time.Now().Add(time.Second * 10)); err != nil { // todo зачем??
+	//	return -1, err
+	//}
 
 	res, err := (*socket).Read(buf)
 	return int64(res), err

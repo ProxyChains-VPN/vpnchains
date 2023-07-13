@@ -55,7 +55,7 @@ echo "Running vpnchains install script..."
 
 check_if_libbson_installed
 
-if [ ! -f "/usr/lib/$VPNCHAINS_LIB_NAME" ]; then
+if [ -f "/usr/lib/$VPNCHAINS_LIB_NAME" ]; then
     read -r -p "$VPNCHAINS_LIB_NAME already exist! Recompile and replace? [Y/n] " response
     case "$response" in
         [nN][oO])
