@@ -1,4 +1,4 @@
-package ipc
+package so_ipc
 
 import (
 	"os"
