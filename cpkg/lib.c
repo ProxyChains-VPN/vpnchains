@@ -177,7 +177,7 @@ bool is_valid(const bson_t* bson){
             | BSON_VALIDATE_UTF8_ALLOW_NULL
             | BSON_VALIDATE_EMPTY_KEYS,
             NULL)) {
-        real_write(2, "Response bson is not valid\n", 27);
+        write(2, "Response bson is not valid\n", 27);
         return false;
     }
     return true;
