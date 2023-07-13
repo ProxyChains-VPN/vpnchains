@@ -10,7 +10,7 @@ import (
 	"syscall"
 )
 
-func (tunnel *WireguardTunnel) connect4(fd int32, sa *syscall.SockaddrInet4) (err error) {
+func (tunnel *WireguardTunnel) connect4(fd int32, sa *syscall.SockaddrInet4) (net.Conn, error) {
 	address := strconv.Itoa(int(sa.Addr[0])) + "." +
 		strconv.Itoa(int(sa.Addr[1])) + "." +
 		strconv.Itoa(int(sa.Addr[2])) + "." +
@@ -19,40 +19,24 @@ func (tunnel *WireguardTunnel) connect4(fd int32, sa *syscall.SockaddrInet4) (er
 
 	log.Println(address)
 
-	//socket, err := tunnel.Net.Dial("tcp4", address) // todo
 	socket, err := tunnel.Net.Dial("tcp4", address)
 	if err != nil {
 		log.Println(err, "24 line overrides")
-		return err
+		return nil, err
 	}
 
-	go func(socket net.Conn) {
-		buf := make([]byte, 32768)
-		for { // TodO сделать норм мультиплексирование
-			n, err := socket.Read(buf)
-			if err != nil {
-				log.Println(err, "31 line overrides")
-				return
-			}
-			log.Println("read from socket", n)
-			_, err = socket.Write(buf[:n])
-			if err != nil {
-				log.Println(err, "37 line overrides")
-			}
-		}
-	}(socket)
-
-	return nil
+	return socket, nil
 }
 
-func (tunnel *WireguardTunnel) Connect(fd int32, sa syscall.Sockaddr) (err error) {
+func (tunnel *WireguardTunnel) Connect(fd int32, sa syscall.Sockaddr) (net.Conn, error) {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
 		return tunnel.connect4(fd, sa)
 	case *syscall.SockaddrInet6:
-		return errors.New(0, "ipv6 not supported")
+		return nil, errors.New(0, "ipv6 not supported")
 	case *syscall.SockaddrUnix:
-		return errors.New(0, "unix sockets are not supposed to be here")
+		return nil, errors.New(0, "why unix is here???")
 	}
-	return nil
+
+	return nil, errors.New(0, "unknown sockaddr type") // todo errno
 }

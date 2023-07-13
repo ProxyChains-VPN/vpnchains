@@ -5,8 +5,8 @@ import (
 	"log"
 	"net"
 	"os"
-	"vpnchains/gopkg/so_ipc"
-	"vpnchains/gopkg/so_ipc/ipc_request_handling"
+	"vpnchains/gopkg/ipc"
+	"vpnchains/gopkg/ipc/ipc_request"
 	"vpnchains/gopkg/vpn"
 	"vpnchains/gopkg/vpn/wireguard"
 )
@@ -29,8 +29,8 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 
 	var buf = make([]byte, BufSize)
 
-	conn := so_ipc.NewConnection(DefaultSockAddr)
-	requestHandler := ipc_request_handling.NewRequestHandler(tunnel) // todo rename???
+	conn := ipc.NewConnection(DefaultSockAddr)
+	requestHandler := ipc_request.NewRequestHandler(tunnel) // todo rename???
 
 	ipcConnectionHandler := func(conn net.Conn) {
 		n, err := conn.Read(buf)
@@ -40,17 +40,33 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 			log.Fatalln(err)
 		}
 
-		responseBuf, err := requestHandler.HandleRequest(requestBuf)
-		if responseBuf == nil && err != nil {
-			log.Fatalln(err) // вроде как невозможно
-		} else if err != nil {
-			log.Println(err, ". Returning error response (line 47 main).")
+		requestType, err := requestHandler.ParseRequestType(requestBuf)
+
+		switch requestType {
+		case "connect":
+			log.Println("connect", request)
+			request, err := requestHandler.ConnectRequestFromBytes(requestBuf)
+
+			sa := ipc_request.IpPortToSockaddr(uint32(request.Ip), request.Port) // todo сделать норм архитектуру и доделать метод
+			// todo по хорошему надо хотяб отдельно функцию сделать аля handleConnect
+			endpointConn, err := tunnel.Connect(request.SockFd, &sa)
+			if err != nil {
+				log.Println(err)
+			}
+
+			//todo тут создается горутина с соединением которое будет крутиться и слушать на подмененном файловом дескрипторе
+
+			responseBuf, err := requestHandler.ConnectResponseToBytes()
+			if err != nil {
+				log.Println(err)
+			}
+
+			_, err = conn.Write(responseBuf)
+			log.Println("connect ended")
+		default:
+			log.Println("Unknown request type:", requestType)
 		}
 
-		_, err = conn.Write(responseBuf)
-		if err != nil {
-			log.Println(err)
-		}
 	}
 
 	ready <- struct{}{}
@@ -77,13 +93,13 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	tunnel, err := wireguard.WireguardTunnelFromConfig(config, Mtu)
+	tunnel, err := wireguard.TunnelFromConfig(config, Mtu)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer tunnel.CloseTunnel()
 
-	cmd := so_ipc.CreateCommandWithInjectedLibrary(InjectedLibPath, commandPath, commandArgs)
+	cmd := ipc.CreateCommandWithInjectedLibrary(InjectedLibPath, commandPath, commandArgs)
 
 	ready := make(chan struct{})
 	go handleIpc(ready, tunnel)

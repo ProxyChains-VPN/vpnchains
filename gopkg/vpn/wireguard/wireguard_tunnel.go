@@ -12,7 +12,7 @@ type WireguardTunnel struct {
 	Net *netstack.Net
 } // TODO инкапсулировать инкапсулируемое
 
-func NewWireguardTunnel(localAddresses, dnsAddresses []netip.Addr, mtu int, uapiConfig string) (*WireguardTunnel, error) {
+func NewTunnel(localAddresses, dnsAddresses []netip.Addr, mtu int, uapiConfig string) (*WireguardTunnel, error) {
 	tun, tnet, err := netstack.CreateNetTUN(localAddresses, dnsAddresses, mtu)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func NewWireguardTunnel(localAddresses, dnsAddresses []netip.Addr, mtu int, uapi
 	return tunnel, nil
 }
 
-func WireguardTunnelFromConfig(config *WireguardConfig, mtu int) (*WireguardTunnel, error) {
+func TunnelFromConfig(config *WireguardConfig, mtu int) (*WireguardTunnel, error) {
 	localAddresses, err := config.AddressStringToNetipAddr()
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func WireguardTunnelFromConfig(config *WireguardConfig, mtu int) (*WireguardTunn
 		return nil, err
 	}
 
-	return NewWireguardTunnel(localAddresses, dnsAddresses, mtu, uapi)
+	return NewTunnel(localAddresses, dnsAddresses, mtu, uapi)
 }
 
 func (tunnel *WireguardTunnel) CloseTunnel() {

@@ -1,4 +1,4 @@
-package so_ipc
+package ipc_request
 
 // ConnectRequest A wrapper struct for
 // int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
