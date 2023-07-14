@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-int local_network_mask[4] = { 167772160, 2130706432, 2886729728, 3232235520 };
+unsigned int local_network_mask[4] = { 167772160, 2130706432, 2886729728, 3232235520 };
 //10.0.0.0/8, 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
 
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
@@ -108,7 +108,8 @@ int connect_unix_socket(int fd) {
     return ipc_sock_fd;
 }
 
-SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen){
+SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen) {
+    callbacks_init();
 
     if (!is_internet_socket(sock_fd) || !is_stream_socket(sock_fd) || is_localhost(addr)) {
         return real_connect(sock_fd, addr, addrlen);
