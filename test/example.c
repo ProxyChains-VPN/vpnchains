@@ -12,7 +12,7 @@ int main() {
     struct sockaddr_in server; /* server address                      */
     int s;                     /* client socket                       */
 
-    hostnm = gethostbyname("1.1.1.1");
+    hostnm = gethostbyname("81.176.66.163");
     port = 80;
 
     server.sin_family      = AF_INET;
@@ -31,7 +31,7 @@ int main() {
         exit(4);
     }
 
-    write(s, "hellosber\n", 11);
+    write(s, "GET lib.ru", 10);
 
     char buf1[1000];
     int res = read(s, buf1, 1000);

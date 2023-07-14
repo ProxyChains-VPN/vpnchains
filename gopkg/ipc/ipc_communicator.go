@@ -40,7 +40,10 @@ func (ipcConnection *IpcConnection) Listen(handler func(conn net.Conn)) error {
 
 		go func() {
 			handler(conn)
-			//conn.Close()
+			//err := conn.Close()
+			//if err != nil {
+			//	log.Println(err)
+			//}
 		}()
 	}
 }

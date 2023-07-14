@@ -32,8 +32,8 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 	conn := ipc.NewConnection(DefaultSockAddr)
 	requestHandler := ipc_request.NewRequestHandler(tunnel) // todo rename???
 
-	ipcConnectionHandler := func(conn net.Conn) {
-		n, err := conn.Read(buf)
+	ipcConnectionHandler := func(sockConn net.Conn) {
+		n, err := sockConn.Read(buf)
 		requestBuf := buf[:n]
 
 		if err != nil {
@@ -44,24 +44,52 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 
 		switch requestType {
 		case "connect":
-			log.Println("connect", request)
+			log.Println("connect")
 			request, err := requestHandler.ConnectRequestFromBytes(requestBuf)
 
 			sa := ipc_request.IpPortToSockaddr(uint32(request.Ip), request.Port) // todo сделать норм архитектуру и доделать метод
 			// todo по хорошему надо хотяб отдельно функцию сделать аля handleConnect
 			endpointConn, err := tunnel.Connect(request.SockFd, &sa)
 			if err != nil {
-				log.Println(err)
+				bytes, _ := requestHandler.ConnectResponseToBytes(ipc_request.ErrorConnectResponse)
+				sockConn.Write(bytes)
 			}
 
-			//todo тут создается горутина с соединением которое будет крутиться и слушать на подмененном файловом дескрипторе
+			bytes, _ := requestHandler.ConnectResponseToBytes(ipc_request.SuccConnectResponse)
+			sockConn.Write(bytes)
 
-			responseBuf, err := requestHandler.ConnectResponseToBytes()
-			if err != nil {
-				log.Println(err)
-			}
+			go func() {
+				buf := make([]byte, BufSize)
+				for {
+					n, err := sockConn.Read(buf)
+					if err != nil {
+						log.Println("read from client", err)
+						continue
+					}
+					log.Println(string(buf[:n]))
+					_, err = endpointConn.Write(buf[:n])
+					if err != nil {
+						log.Println("write to server", err)
+						continue
+					}
+				}
+			}()
 
-			_, err = conn.Write(responseBuf)
+			go func() {
+				buf := make([]byte, BufSize)
+				for {
+					n, err := endpointConn.Read(buf)
+					if err != nil {
+						log.Println("read from server", err)
+						continue
+					}
+					_, err = sockConn.Write(buf[:n])
+					if err != nil {
+						log.Println("write to client", err)
+						continue
+					}
+				}
+			}()
 			log.Println("connect ended")
 		default:
 			log.Println("Unknown request type:", requestType)
@@ -112,7 +140,7 @@ func main() {
 
 	err = cmd.Wait()
 	if err != nil {
-		log.Fatalln("subprocess says, ", err)
+		log.Fatalln("subprocess says,", err)
 	}
 
 	tunnel.CloseTunnel()
