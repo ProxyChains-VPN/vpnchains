@@ -7,7 +7,7 @@ import (
 // IpcConnection A struct that represents an IPC connection.
 // SocketPath - path to the socket file.
 type IpcConnection struct {
-	SocketPath string
+	Addr *net.UnixAddr
 }
 
 // IpcCommunicator An interface that represents an IPC communicator.
@@ -21,19 +21,20 @@ type IpcCommunicator interface {
 // NewConnection creates a new IpcConnection instance.
 // socketPath - path to the socket file.
 func NewConnection(socketPath string) *IpcConnection {
-	return &IpcConnection{SocketPath: socketPath}
+	return &IpcConnection{Addr: &net.UnixAddr{Name: socketPath}}
 }
 
 // Listen listens to the socket.
 // handler - a function that handles the connection.
-func (ipcConnection *IpcConnection) Listen(handler func(conn net.Conn)) error {
-	socket, err := net.Listen("unix", ipcConnection.SocketPath)
+func (ipcConnection *IpcConnection) Listen(handler func(conn *net.UnixConn)) error {
+	//socket, err := net.Listen("unix", ipcConnection.SocketPath)
+	socket, err := net.ListenUnix("unix", ipcConnection.Addr)
 	if err != nil {
 		return err
 	}
 
 	for {
-		conn, err := socket.Accept()
+		conn, err := socket.AcceptUnix()
 		if err != nil {
 			return err
 		}

@@ -1,10 +1,10 @@
 package vpn
 
 import (
+	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
 	"net"
-	"syscall"
 )
 
 type Tunnel interface {
-	Connect(fd int32, sa syscall.Sockaddr) (net.Conn, error)
+	Connect(addr *net.TCPAddr) (*gonet.TCPConn, error)
 }
