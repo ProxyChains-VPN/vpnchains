@@ -19,22 +19,18 @@ unsigned int local_network_mask[4] = { 167772160, 2130706432, 2886729728, 323223
 
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
 
-Connect_callback real_connect = NULL;
+Connect_callback __real_connect = NULL;
 
-void callbacks_init() {
-    static bool called = false;
-    if (!called) {
-        called = true;
-    } else {
-        return;
+int real_connect(int fd, const struct sockaddr* sa, socklen_t len) {
+    if (__real_connect == NULL) {
+        void *h_dl = RTLD_NEXT;
+        if (h_dl == NULL) {
+            exit(66);
+        }
+
+        __real_connect = (Connect_callback)dlsym(h_dl, "connect");
     }
-
-    void *h_dl = RTLD_NEXT;
-    if (h_dl == NULL) {
-        exit(66);
-    }
-
-    real_connect = (Connect_callback)dlsym(h_dl, "connect");
+    __real_connect(fd, sa, len);
 }
 
 bool is_internet_socket(int fd) {
@@ -80,8 +76,6 @@ bool is_localhost(const struct sockaddr *addr){
 bool is_valid(const bson_t* bson);
 
 int connect_unix_socket(int fd) {
-    callbacks_init();
-
     int ipc_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (ipc_sock_fd == -1) {
         perror("Failed to open tmp socket");
@@ -109,8 +103,6 @@ int connect_unix_socket(int fd) {
 }
 
 SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen) {
-    callbacks_init();
-
     if (!is_internet_socket(sock_fd) || !is_stream_socket(sock_fd) || is_localhost(addr)) {
         return real_connect(sock_fd, addr, addrlen);
     }
@@ -168,6 +160,11 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     return res;
 }
+
+//SO_EXPORT int close(int fd) {
+//    fprintf(stderr, "closing fd %d", fd);
+//    return shutdown(fd, SHUT_RDWR);
+//}
 
 bool is_valid(const bson_t* bson){
     if (!bson_validate(
