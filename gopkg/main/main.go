@@ -68,7 +68,7 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 						if errors.Is(err, io.EOF) {
 							log.Println("closing endpoint write and socket read")
 							sockConn.CloseRead()
-							endpointConn.CloseWrite()
+							//endpointConn.CloseWrite()
 							return
 						} else {
 							log.Println("read from client", err)
@@ -91,7 +91,7 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 					if err != nil {
 						if errors.Is(err, io.EOF) {
 							log.Println("closing endpoint read and socket write")
-							endpointConn.CloseRead()
+							//endpointConn.CloseRead()
 							sockConn.CloseWrite()
 							return
 						} else {
