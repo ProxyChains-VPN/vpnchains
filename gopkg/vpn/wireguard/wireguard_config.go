@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"gopkg.in/ini.v1"
-	"log"
 	"net/netip"
 	"strings"
 )
@@ -106,7 +105,5 @@ func (config *WireguardConfig) Uapi() (string, error) {
 	}
 
 	res += `endpoint=` + config.Peer.Endpoint + "\n"
-
-	log.Println(res)
 	return res, nil
 }
