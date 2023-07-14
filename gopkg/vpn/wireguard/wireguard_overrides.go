@@ -19,8 +19,8 @@ func (tunnel *WireguardTunnel) connect4(fd int32, sa *syscall.SockaddrInet4) (ne
 
 	log.Println(address)
 
-	socket, err := tunnel.Net.Dial("tcp4", address)
-	//socket, err := net.Dial("tcp4", address)
+	//socket, err := tunnel.Net.Dial("tcp4", address)
+	socket, err := net.Dial("tcp4", address)
 	if err != nil {
 		log.Println(err, "24 line overrides")
 		return nil, err
