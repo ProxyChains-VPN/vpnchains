@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -32,7 +34,7 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 	conn := ipc.NewConnection(DefaultSockAddr)
 	requestHandler := ipc_request.NewRequestHandler(tunnel) // todo rename???
 
-	ipcConnectionHandler := func(sockConn net.Conn) {
+	ipcConnectionHandler := func(sockConn *net.UnixConn) {
 		n, err := sockConn.Read(buf)
 		requestBuf := buf[:n]
 
@@ -47,9 +49,9 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 			log.Println("connect")
 			request, err := requestHandler.ConnectRequestFromBytes(requestBuf)
 
-			sa := ipc_request.IpPortToSockaddr(uint32(request.Ip), request.Port) // todo сделать норм архитектуру и доделать метод
+			sa := ipc_request.UnixIpPortToTCPAddr(uint32(request.Ip), request.Port) // todo сделать норм архитектуру и доделать метод
 			// todo по хорошему надо хотяб отдельно функцию сделать аля handleConnect
-			endpointConn, err := tunnel.Connect(request.SockFd, &sa)
+			endpointConn, err := tunnel.Connect(sa)
 			if err != nil {
 				bytes, _ := requestHandler.ConnectResponseToBytes(ipc_request.ErrorConnectResponse)
 				sockConn.Write(bytes)
@@ -63,8 +65,15 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 				for {
 					n, err := sockConn.Read(buf)
 					if err != nil {
-						log.Println("read from client", err)
-						continue
+						if errors.Is(err, io.EOF) {
+							log.Println("closing endpoint write and socket read")
+							sockConn.CloseRead()
+							endpointConn.CloseWrite()
+							return
+						} else {
+							log.Println("read from client", err)
+							continue
+						}
 					}
 					log.Println(string(buf[:n]))
 					_, err = endpointConn.Write(buf[:n])
@@ -80,8 +89,15 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 				for {
 					n, err := endpointConn.Read(buf)
 					if err != nil {
-						log.Println("read from server", err)
-						continue
+						if errors.Is(err, io.EOF) {
+							log.Println("closing endpoint read and socket write")
+							endpointConn.CloseRead()
+							sockConn.CloseWrite()
+							return
+						} else {
+							log.Println("read from server", err)
+							continue
+						}
 					}
 					_, err = sockConn.Write(buf[:n])
 					if err != nil {
