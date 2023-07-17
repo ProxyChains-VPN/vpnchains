@@ -15,8 +15,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-unsigned int local_network_mask[4] = { 10, 127, 4268, 43200 };
-//10.0.0.0/8, 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+unsigned int local_network_mask[5] = { 10, 127, 4268, 43200, 0 };
+//10.0.0.0/8, 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 0.0.0.0
 
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
 
@@ -67,7 +67,7 @@ bool is_stream_socket(int fd){
 bool is_localhost(const struct sockaddr *addr){
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
     unsigned int ip = sin->sin_addr.s_addr;
-    for(int i; i < 4; i++){
+    for(int i; i < 5; i++){
         if(((ip & local_network_mask[i]) ^ local_network_mask[i]) == 0){
             return true;
         }
