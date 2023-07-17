@@ -111,14 +111,14 @@ int connect_unix_socket(int fd) {
     int flags = fcntl(fd, F_GETFL);
     fcntl(ipc_sock_fd, F_SETFL, flags);
     if (flags & O_NONBLOCK) {
-        fcntl(ipc_sock_fd, F_SETFL, !O_NONBLOCK);
+        fcntl(ipc_sock_fd, F_SETFL, flags & ~O_NONBLOCK);
         if (-1 == real_connect(ipc_sock_fd, (const struct sockaddr*)&name, sizeof(name))){
             perror("Connect() tmp socket failed");
             fprintf(stderr, "%s\n", name.sun_path);
             close(ipc_sock_fd);
             return -1;
         }
-        fcntl(ipc_sock_fd, F_SETFL, O_NONBLOCK);
+        fcntl(ipc_sock_fd, F_SETFL, flags);
     } else {
         if (-1 == real_connect(ipc_sock_fd, (const struct sockaddr*)&name, sizeof(name))){
             perror("Connect() tmp socket failed");
