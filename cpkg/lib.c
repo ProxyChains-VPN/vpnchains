@@ -67,32 +67,38 @@ bool is_stream_socket(int fd){
 bool is_localhost(const struct sockaddr *addr){
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
     unsigned int ip = sin->sin_addr.s_addr;
+
     for(int i; i < 5; i++){
         if(((ip & local_network_mask[i]) ^ local_network_mask[i]) == 0){
             return true;
         }
     }
     return false;
-    //return ip == 16777343;
+//    return ip == 16777343 || ip == 0;
 }
 
 bool is_valid(const bson_t* bson);
 
 int connect_unix_socket(int fd) {
+    static bool called = false;
+    static struct sockaddr_un name;
+    if (!called) {
+        memset(&name, 0, sizeof(struct sockaddr_un));
+        name.sun_family = AF_UNIX;
+        strcpy(name.sun_path, IPC_SOCK_PATH);
+        called = true;
+    }
+
     int ipc_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (ipc_sock_fd == -1) {
         perror("Failed to open tmp socket");
         return -1;
     }
 
-    struct sockaddr_un name;
-    memset(&name, 0, sizeof(name));
-    name.sun_family = AF_UNIX;
-    strcpy(name.sun_path, IPC_SOCK_PATH);
-
     int tmp_sock_connect_res = real_connect(ipc_sock_fd, (const struct sockaddr*)&name, sizeof(name));
     if (tmp_sock_connect_res == -1) {
         perror("Connect() tmp socket failed");
+        fprintf(stderr, "%s\n", name.sun_path);
         close(ipc_sock_fd);
         return -1;
     }
@@ -123,7 +129,12 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     unsigned int unixIp = sin->sin_addr.s_addr;
     fprintf(stderr, "[line124]connecting to %u.%u.%u.%u:%u\n\n", (unsigned char) unixIp, (unsigned char)(unixIp>>8), (unsigned char)(unixIp>>16), (unsigned char)(unixIp>>24), ntohs(sin->sin_port));
 
+//    return real_connect(sock_fd, addr, addrlen);
+
+    pthread_mutex_lock(&lock);
+
     int ipc_sock_fd = connect_unix_socket(sock_fd);
+    pthread_mutex_unlock(&lock);
     if (ipc_sock_fd == -1) {
         write(2, "Failed to connect UNIX socket\n", 30);
         return -1;
