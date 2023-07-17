@@ -46,19 +46,22 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 
 		switch requestType {
 		case "connect":
-			log.Println("connect")
 			request, err := requestHandler.ConnectRequestFromBytes(requestBuf)
+			if err != nil {
+				log.Println("eRROR PARSING", err)
+				return
+			}
 
 			sa := ipc_request.UnixIpPortToTCPAddr(uint32(request.Ip), request.Port) // todo сделать норм архитектуру и доделать метод
+			log.Println("connect to sa", sa.IP, sa.Port)
 			// todo по хорошему надо хотяб отдельно функцию сделать аля handleConnect
 			endpointConn, err := tunnel.Connect(sa)
 			if err != nil {
+				log.Println("ERROR CONNECTING", err)
 				bytes, _ := requestHandler.ConnectResponseToBytes(ipc_request.ErrorConnectResponse)
 				sockConn.Write(bytes)
+				return
 			}
-
-			bytes, _ := requestHandler.ConnectResponseToBytes(ipc_request.SuccConnectResponse)
-			sockConn.Write(bytes)
 
 			go func() {
 				buf := make([]byte, BufSize)
@@ -75,7 +78,7 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 							continue
 						}
 					}
-					log.Println(string(buf[:n]))
+					log.Println("READ FROM CLIENT", string(buf[:n]))
 					_, err = endpointConn.Write(buf[:n])
 					if err != nil {
 						log.Println("write to server", err)
@@ -99,6 +102,7 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 							continue
 						}
 					}
+					log.Println("READ FROM SERVER", string(buf[:n]))
 					_, err = sockConn.Write(buf[:n])
 					if err != nil {
 						log.Println("write to client", err)
@@ -106,9 +110,14 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 					}
 				}
 			}()
+
+			bytes, _ := requestHandler.ConnectResponseToBytes(ipc_request.SuccConnectResponse)
+			sockConn.Write(bytes)
+
 			log.Println("connect ended")
 		default:
 			log.Println("Unknown request type:", requestType)
+			return
 		}
 
 	}
@@ -116,7 +125,7 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 	ready <- struct{}{}
 	err = conn.Listen(ipcConnectionHandler)
 	if err != nil {
-		log.Println("sldfadsf")
+		log.Println("unable to start listening", err)
 		log.Fatalln(err)
 	}
 }
