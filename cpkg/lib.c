@@ -80,6 +80,7 @@ bool is_localhost(const struct sockaddr *addr){
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
     unsigned int ip = sin->sin_addr.s_addr;
 
+
     for(int i; i < 4; i++){
         if(((ip & local_network_mask[i]) ^ local_network_mask[i]) == 0){
             return true;
@@ -91,29 +92,48 @@ bool is_localhost(const struct sockaddr *addr){
 
 bool is_valid(const bson_t* bson);
 
-int connect_local_socket(int fd) {
+int connect_unix_socket(int fd) {
     static bool called = false;
-    static struct sockaddr_in name;
+    static struct sockaddr_un name;
     if (!called) {
-        memset(&name, 0, sizeof(struct sockaddr_in));
-        name.sin_family = AF_INET;
-        name.sin_port = htons(45454);
-        if(inet_pton(AF_INET, "127.0.0.1", &name.sin_addr) <= 0){
-            perror("inet_pton failed");
-            return -1;
-	    }
+        memset(&name, 0, sizeof(struct sockaddr_un));
+        name.sun_family = AF_UNIX;
+        strcpy(name.sun_path, IPC_SOCK_PATH);
         called = true;
     }
 
-    int tmp_sock_connect_res = real_connect(fd, (const struct sockaddr*)&name, sizeof(name));
-    if (tmp_sock_connect_res == -1) {
-        perror("Connect() tmp socket failed");
-        //fprintf(stderr, "%s\n", name.sun_path);
-        close(fd);
+    int ipc_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (ipc_sock_fd == -1) {
+        perror("Failed to open tmp socket");
         return -1;
     }
 
-    return tmp_sock_connect_res;
+    int flags = fcntl(fd, F_GETFL);
+    fcntl(ipc_sock_fd, F_SETFL, flags);
+    if (flags & O_NONBLOCK) {
+        fcntl(ipc_sock_fd, F_SETFL, !O_NONBLOCK);
+        if (-1 == real_connect(ipc_sock_fd, (const struct sockaddr*)&name, sizeof(name))){
+            perror("Connect() tmp socket failed");
+            fprintf(stderr, "%s\n", name.sun_path);
+            close(ipc_sock_fd);
+            return -1;
+        }
+        fcntl(ipc_sock_fd, F_SETFL, O_NONBLOCK);
+    } else {
+        if (-1 == real_connect(ipc_sock_fd, (const struct sockaddr*)&name, sizeof(name))){
+            perror("Connect() tmp socket failed");
+            fprintf(stderr, "%s\n", name.sun_path);
+            close(ipc_sock_fd);
+            return -1;
+        }
+    }
+
+    if(-1 == dup2(ipc_sock_fd, fd)){
+        perror("dup2() failed");
+        return -1;
+    }
+
+    return ipc_sock_fd;
 }
 
 SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen) {
@@ -132,25 +152,13 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     unsigned int unixIp = sin->sin_addr.s_addr;
     fprintf(stderr, "[line124]connecting to %u.%u.%u.%u:%u\n\n", (unsigned char) unixIp, (unsigned char)(unixIp>>8), (unsigned char)(unixIp>>16), (unsigned char)(unixIp>>24), ntohs(sin->sin_port));
 
-//    return real_connect(sock_fd, addr, addrlen);
-
-    int flags = fcntl(sock_fd, F_GETFL, 0);
-    if (flags & O_NONBLOCK) {
-        fcntl(sock_fd, F_SETFL, !O_NONBLOCK);
-        if (-1 == connect_local_socket(sock_fd)){
-            write(2, "Failed to connect UNIX socket\n", 30);
-            return -1;
-        }
-        fcntl(sock_fd, F_SETFL, O_NONBLOCK);
-    } else {
-        if (-1 == connect_local_socket(sock_fd)){
-            write(2, "Failed to connect UNIX socket\n", 30);
-            return -1;
-        }
-
+    int ipc_sock_fd = connect_unix_socket(sock_fd);
+    if (ipc_sock_fd == -1) {
+        write(2, "Failed to connect UNIX socket\n", 30);
+        return -1;
     }
 
-    int bytes_written = write(sock_fd, bson_get_data(&bson_request), bson_request.len);
+    int bytes_written = write(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (bytes_written == -1) {
         perror("Write() to tmp socket failed");
         return -1;
@@ -158,7 +166,7 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     bson_destroy(&bson_request);
 
-    bson_reader_t* reader = bson_reader_new_from_fd(sock_fd, false);
+    bson_reader_t* reader = bson_reader_new_from_fd(ipc_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
     if (!is_valid(bson_response)){
         return -1;
