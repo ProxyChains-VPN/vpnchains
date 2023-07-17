@@ -1,6 +1,7 @@
 package ipc
 
 import (
+	"log"
 	"net"
 )
 
@@ -27,7 +28,6 @@ func NewConnection(socketPath string) *IpcConnection {
 // Listen listens to the socket.
 // handler - a function that handles the connection.
 func (ipcConnection *IpcConnection) Listen(handler func(conn *net.UnixConn)) error {
-	//socket, err := net.Listen("unix", ipcConnection.SocketPath)
 	socket, err := net.ListenUnix("unix", ipcConnection.Addr)
 	if err != nil {
 		return err
@@ -36,15 +36,10 @@ func (ipcConnection *IpcConnection) Listen(handler func(conn *net.UnixConn)) err
 	for {
 		conn, err := socket.AcceptUnix()
 		if err != nil {
-			return err
+			log.Println(err)
+			continue
 		}
 
-		go func() {
-			handler(conn)
-			//err := conn.Close()
-			//if err != nil {
-			//	log.Println(err)
-			//}
-		}()
+		go handler(conn)
 	}
 }
