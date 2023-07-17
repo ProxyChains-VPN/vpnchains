@@ -102,12 +102,13 @@ int connect_unix_socket(int fd) {
         called = true;
     }
 
-    int ipc_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    int source_type = socket_type(fd);
+
+    int ipc_sock_fd = socket(AF_UNIX, source_type, 0);
     if (ipc_sock_fd == -1) {
         perror("Failed to open tmp socket");
         return -1;
     }
-
     int flags = fcntl(fd, F_GETFL);
     fcntl(ipc_sock_fd, F_SETFL, flags);
     if (flags & O_NONBLOCK) {
