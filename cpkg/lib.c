@@ -10,6 +10,7 @@
 #include <gnu/lib-names.h>
 #include <stdbool.h>
 #include <libbson-1.0/bson/bson.h>
+#include <pthread.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -62,15 +63,17 @@ bool is_stream_socket(int fd){
     return socktype == SOCK_STREAM;
 }
 
+// TODO починить
 bool is_localhost(const struct sockaddr *addr){
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
-    int ip = sin->sin_addr.s_addr;
-    for(int i; i < 4; i++){
-        if(((ip & local_network_mask[i]) ^ local_network_mask[i]) == 0){
-            return true;
-        }
-    }
-    return false;
+    unsigned int ip = sin->sin_addr.s_addr;
+//    for(int i; i < 4; i++){
+//        if(((ip & local_network_mask[i]) ^ local_network_mask[i]) == 0){
+//            return true;
+//        }
+//    }
+//    return false;
+    return ip == 16777343;
 }
 
 bool is_valid(const bson_t* bson);
@@ -102,6 +105,8 @@ int connect_unix_socket(int fd) {
     return ipc_sock_fd;
 }
 
+pthread_mutex_t lock;
+
 SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen) {
     if (!is_internet_socket(sock_fd) || !is_stream_socket(sock_fd) || is_localhost(addr)) {
         return real_connect(sock_fd, addr, addrlen);
@@ -115,11 +120,15 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     BSON_APPEND_INT32(&bson_request, "port", ntohs(sin->sin_port));
     BSON_APPEND_INT32(&bson_request, "ip", sin->sin_addr.s_addr);
 
+    unsigned int unixIp = sin->sin_addr.s_addr;
+    fprintf(stderr, "[line124]connecting to %u.%u.%u.%u:%u\n\n", (unsigned char) unixIp, (unsigned char)(unixIp>>8), (unsigned char)(unixIp>>16), (unsigned char)(unixIp>>24), ntohs(sin->sin_port));
+
     int ipc_sock_fd = connect_unix_socket(sock_fd);
     if (ipc_sock_fd == -1) {
         write(2, "Failed to connect UNIX socket\n", 30);
         return -1;
     }
+
 
     int bytes_written = write(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (bytes_written == -1) {
@@ -158,6 +167,7 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     bson_reader_destroy(reader);
 
+    fprintf(stderr, "\n[line 172] connect result %d\n\n", res);
     return res;
 }
 
