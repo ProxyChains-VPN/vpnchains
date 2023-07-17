@@ -74,7 +74,7 @@ bool is_localhost(const struct sockaddr *addr){
         }
     }
 
-    return ip == 16777343 || ip == 0;
+    return ip == 0;
 }
 
 bool is_valid(const bson_t* bson);
@@ -104,8 +104,6 @@ int connect_local_socket(int fd) {
     return tmp_sock_connect_res;
 }
 
-pthread_mutex_t lock;
-
 SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen) {
     if (!is_internet_socket(sock_fd) || !is_stream_socket(sock_fd) || is_localhost(addr)) {
         return real_connect(sock_fd, addr, addrlen);
@@ -124,14 +122,21 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
 //    return real_connect(sock_fd, addr, addrlen);
 
-//    pthread_mutex_lock(&lock);
+    int flags = fcntl(sock_fd, F_GETFL, 0);
+    if (flags & O_NONBLOCK) {
+        fcntl(sock_fd, F_SETFL, !O_NONBLOCK);
+        if (-1 == connect_local_socket(sock_fd)){
+            write(2, "Failed to connect UNIX socket\n", 30);
+            return -1;
+        }
+        fcntl(sock_fd, F_SETFL, O_NONBLOCK);
+    } else {
+        if (-1 == connect_local_socket(sock_fd)){
+            write(2, "Failed to connect UNIX socket\n", 30);
+            return -1;
+        }
 
-    if(-1 == connect_local_socket(sock_fd)){
-//    pthread_mutex_unlock(&lock); 
-        write(2, "Failed to connect UNIX socket\n", 30);
-        return -1;
     }
-
 
     int bytes_written = write(sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (bytes_written == -1) {
