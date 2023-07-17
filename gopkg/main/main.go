@@ -103,7 +103,7 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 						}
 					}
 					//log.Println("READ FROM SERVER", string(buf[:n]))
-					_, err = sockConn.Write(buf[:n])
+					_, err = sockConn.Write(buf[:n]) // todo если что в несколько раз отправить?????
 					if err != nil {
 						log.Println("write to client", err)
 						continue
