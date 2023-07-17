@@ -131,10 +131,10 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
 //    return real_connect(sock_fd, addr, addrlen);
 
-    pthread_mutex_lock(&lock);
+//    pthread_mutex_lock(&lock);
 
     int ipc_sock_fd = connect_unix_socket(sock_fd);
-    pthread_mutex_unlock(&lock);
+//    pthread_mutex_unlock(&lock);
     if (ipc_sock_fd == -1) {
         write(2, "Failed to connect UNIX socket\n", 30);
         return -1;
