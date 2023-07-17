@@ -34,7 +34,7 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 	conn := ipc.NewConnection(DefaultSockAddr)
 	requestHandler := ipc_request.NewRequestHandler(tunnel) // todo rename???
 
-	ipcConnectionHandler := func(sockConn *net.UnixConn) {
+	ipcConnectionHandler := func(sockConn *net.TCPConn) {
 		n, err := sockConn.Read(buf)
 		requestBuf := buf[:n]
 
