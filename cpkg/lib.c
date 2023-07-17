@@ -51,6 +51,18 @@ bool is_internet_socket(int fd) {
     return addr.sa_family == AF_INET6 || addr.sa_family == AF_INET;
 }
 
+int socket_type(int fd){
+    int socktype = 0;
+    socklen_t optlen = sizeof(socktype);
+
+    if(-1 == getsockopt(fd, SOL_SOCKET, SO_TYPE, &socktype, &optlen)){
+        perror("getsockopt() failed");
+        return -1;
+    }
+
+    return socktype;
+}
+
 bool is_stream_socket(int fd){
     int socktype = 0;
     socklen_t optlen = sizeof(socktype);
@@ -60,7 +72,7 @@ bool is_stream_socket(int fd){
         return false;
     }
 
-    return socktype == SOCK_STREAM;
+    return socktype & SOCK_STREAM ? true : false;
 }
 
 // TODO починить
