@@ -74,8 +74,8 @@ bool is_localhost(const struct sockaddr *addr){
         }
     }
 
-    return 0 == ip;
-//    return ip == 16777343 || ip == 0;
+//    return 0 == ip;
+    return ip == 16777343 || ip == 0;
 }
 
 bool is_valid(const bson_t* bson);
