@@ -78,7 +78,7 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 							continue
 						}
 					}
-					log.Println("READ FROM CLIENT", string(buf[:n]))
+					//log.Println("READ FROM CLIENT", string(buf[:n]))
 					_, err = endpointConn.Write(buf[:n])
 					if err != nil {
 						log.Println("write to server", err)
@@ -102,7 +102,7 @@ func handleIpc(ready chan struct{}, tunnel vpn.Tunnel) {
 							continue
 						}
 					}
-					log.Println("READ FROM SERVER", string(buf[:n]))
+					//log.Println("READ FROM SERVER", string(buf[:n]))
 					_, err = sockConn.Write(buf[:n])
 					if err != nil {
 						log.Println("write to client", err)
