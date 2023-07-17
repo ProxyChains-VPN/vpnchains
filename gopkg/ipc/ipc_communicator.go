@@ -27,14 +27,14 @@ func NewConnection(socketPath string) *IpcConnection {
 
 // Listen listens to the socket.
 // handler - a function that handles the connection.
-func (ipcConnection *IpcConnection) Listen(handler func(conn *net.TCPConn)) error {
-	socket, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 45454})
+func (ipcConnection *IpcConnection) Listen(handler func(conn *net.UnixConn)) error {
+	socket, err := net.ListenUnix("unix", ipcConnection.Addr)
 	if err != nil {
 		return err
 	}
 
 	for {
-		conn, err := socket.AcceptTCP()
+		conn, err := socket.AcceptUnix()
 		if err != nil {
 			log.Println(err)
 			continue
