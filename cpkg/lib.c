@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-unsigned int local_network_mask[5] = { 10, 127, 4268, 43200 };
+unsigned int local_network_mask[4] = { 10, 127, 4268, 43200 };
 //10.0.0.0/8, 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
 
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
