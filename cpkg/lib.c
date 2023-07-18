@@ -6,12 +6,10 @@
 #include <sys/un.h>
 #include <assert.h>
 #include <string.h>
-#include <stdio.h>
 #include <gnu/lib-names.h>
 #include <stdbool.h>
 #include <libbson-1.0/bson/bson.h>
-#include <pthread.h>
-
+#include <arpa/inet.h>
 #include <stdlib.h>
 #include <stdio.h>
 
