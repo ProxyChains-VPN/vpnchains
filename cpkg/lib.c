@@ -10,10 +10,8 @@
 #include <gnu/lib-names.h>
 #include <stdbool.h>
 #include <libbson-1.0/bson/bson.h>
-#include <pthread.h>
-
+#include <netinet/tcp.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 unsigned int local_network_mask[4] = { 10, 127, 4268, 43200 };
 //10.0.0.0/8, 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
@@ -75,7 +73,6 @@ bool is_stream_socket(int fd){
     return socktype & SOCK_STREAM ? true : false;
 }
 
-// TODO починить
 bool is_localhost(const struct sockaddr *addr){
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
     unsigned int ip = sin->sin_addr.s_addr;
@@ -96,41 +93,22 @@ int connect_unix_socket(int fd) {
     static bool called = false;
     static struct sockaddr_un name;
     if (!called) {
-        memset(&name, 0, sizeof(struct sockaddr_un));
+        memset(&name, 0, sizeof(name));
         name.sun_family = AF_UNIX;
         strcpy(name.sun_path, IPC_SOCK_PATH);
         called = true;
     }
 
-    int source_type = socket_type(fd);
-
-    int ipc_sock_fd = socket(AF_UNIX, source_type, 0);
+    int ipc_sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (ipc_sock_fd == -1) {
         perror("Failed to open tmp socket");
         return -1;
     }
-    int flags = fcntl(fd, F_GETFL);
-    fcntl(ipc_sock_fd, F_SETFL, flags);
-    if (flags & O_NONBLOCK) {
-        fcntl(ipc_sock_fd, F_SETFL, flags & ~O_NONBLOCK);
-        if (-1 == real_connect(ipc_sock_fd, (const struct sockaddr*)&name, sizeof(name))){
-            perror("Connect() tmp socket failed");
-            fprintf(stderr, "%s\n", name.sun_path);
-            close(ipc_sock_fd);
-            return -1;
-        }
-        fcntl(ipc_sock_fd, F_SETFL, flags);
-    } else {
-        if (-1 == real_connect(ipc_sock_fd, (const struct sockaddr*)&name, sizeof(name))){
-            perror("Connect() tmp socket failed");
-            fprintf(stderr, "%s\n", name.sun_path);
-            close(ipc_sock_fd);
-            return -1;
-        }
-    }
-
-    if(-1 == dup2(ipc_sock_fd, fd)){
-        perror("dup2() failed");
+    
+    if (-1 == real_connect(ipc_sock_fd, (const struct sockaddr*)&name, sizeof(name))){
+        perror("Connect() tmp socket failed");
+        fprintf(stderr, "%s\n", name.sun_path);
+        close(ipc_sock_fd);
         return -1;
     }
 
@@ -195,6 +173,21 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     res = bson_iter_int32(&result_code);
 
     bson_reader_destroy(reader);
+
+    int flags = fcntl(sock_fd, F_GETFL, 0);
+    if(-1 == flags){
+	perror("fcntl() failed\n");
+	return -1;
+    }
+    if(-1 == fcntl(ipc_sock_fd, F_SETFL, flags)){
+	perror("fcntl() failed\n");
+	return -1;
+    }
+    
+    if(-1 == dup2(ipc_sock_fd, sock_fd)){
+        perror("dup2() failed");
+        return -1;
+    }
 
     fprintf(stderr, "\n[line 172] connect result %d\n\n", res);
     return res;
