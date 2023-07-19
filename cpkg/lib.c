@@ -12,6 +12,7 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 
 unsigned int local_network_mask[4] = { 10, 127, 4268, 43200 };
 //10.0.0.0/8, 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
@@ -102,16 +103,22 @@ int connect_local_socket(int fd) {
 	    }
         called = true;
     }
+    
+    int ipc_sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if(ipc_sock_fd == -1){
+	perror("socket() failed");
+	return -1;
+    }
 
-    int tmp_sock_connect_res = real_connect(fd, (const struct sockaddr*)&name, sizeof(name));
+    int tmp_sock_connect_res = real_connect(ipc_sock_fd, (const struct sockaddr*)&name, sizeof(name));
     if (tmp_sock_connect_res == -1) {
         perror("Connect() tmp socket failed");
         //fprintf(stderr, "%s\n", name.sun_path);
-        close(fd);
+        close(ipc_sock_fd);
         return -1;
     }
 
-    return tmp_sock_connect_res;
+    return ipc_sock_fd;
 }
 
 SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen) {
@@ -130,25 +137,25 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     unsigned int unixIp = sin->sin_addr.s_addr;
     fprintf(stderr, "[line124]connecting to %u.%u.%u.%u:%u\n\n", (unsigned char) unixIp, (unsigned char)(unixIp>>8), (unsigned char)(unixIp>>16), (unsigned char)(unixIp>>24), ntohs(sin->sin_port));
 
-//    return real_connect(sock_fd, addr, addrlen);
-
-    int flags = fcntl(sock_fd, F_GETFL, 0);
-    if (flags & O_NONBLOCK) {
-        fcntl(sock_fd, F_SETFL, !O_NONBLOCK);
-        if (-1 == connect_local_socket(sock_fd)){
-            write(2, "Failed to connect UNIX socket\n", 30);
+    int ipc_sock_fd;
+    //int flags = fcntl(sock_fd, F_GETFL, 0);
+    //if (flags & O_NONBLOCK) {
+        //fcntl(sock_fd, F_SETFL, !O_NONBLOCK);
+        ipc_sock_fd = connect_local_socket(sock_fd);
+        if (-1 == ipc_sock_fd){
+            write(2, "Failed to connect local tcp socket\n", 30);
             return -1;
         }
-        fcntl(sock_fd, F_SETFL, O_NONBLOCK);
-    } else {
-        if (-1 == connect_local_socket(sock_fd)){
-            write(2, "Failed to connect UNIX socket\n", 30);
+        //fcntl(sock_fd, F_SETFL, O_NONBLOCK);
+    /*} else {
+	ipc_sock_fd = connect_local_socket(sock_fd);
+        if (-1 == ipc_sock_fd){
+            write(2, "Failed to connect local tcp socket\n", 30);
             return -1;
         }
+    }*/
 
-    }
-
-    int bytes_written = write(sock_fd, bson_get_data(&bson_request), bson_request.len);
+    int bytes_written = write(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len);
     if (bytes_written == -1) {
         perror("Write() to tmp socket failed");
         return -1;
@@ -156,7 +163,7 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     bson_destroy(&bson_request);
 
-    bson_reader_t* reader = bson_reader_new_from_fd(sock_fd, false);
+    bson_reader_t* reader = bson_reader_new_from_fd(ipc_sock_fd, false);
     const bson_t* bson_response = bson_reader_read(reader, NULL);
     if (!is_valid(bson_response)){
         return -1;
@@ -184,6 +191,14 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     res = bson_iter_int32(&result_code);
 
     bson_reader_destroy(reader);
+    
+    int flags = fcntl(sock_fd, F_GETFL, 0);
+    fcntl(ipc_sock_fd, F_SETFL, flags);
+    
+    if(-1 == dup2(ipc_sock_fd, sock_fd)){
+	perror("dup2() failed");
+	return -1;
+    }
 
     fprintf(stderr, "\n[line 172] connect result %d\n\n", res);
     return res;
