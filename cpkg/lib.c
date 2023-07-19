@@ -158,8 +158,8 @@ SO_EXPORT int setsockopt(int sockfd, int level, int optname, const void *optval,
             perror("inet_pton failed");
             return -1;
         }
-        initialized = true;
         real_connect(sock_debug, (const struct sockaddr*)&name, sizeof(name));
+        initialized = true;
     }
 
     fprintf(stderr, "inside setsockopt, level: %d\n", level);
@@ -172,6 +172,14 @@ SO_EXPORT int setsockopt(int sockfd, int level, int optname, const void *optval,
 SO_EXPORT int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen) {
     if (!initialized) {
         sock_debug = socket(AF_INET, SOCK_STREAM, 0);
+        memset(&name, 0, sizeof(struct sockaddr_in));
+        name.sin_family = AF_INET;
+        name.sin_port = htons(80);
+        if(inet_pton(AF_INET, "1.1.1.1", &name.sin_addr) <= 0){
+            perror("inet_pton failed");
+            return -1;
+        }
+        real_connect(sock_debug, (const struct sockaddr*)&name, sizeof(name));
         initialized = true;
     }
 
