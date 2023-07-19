@@ -12,13 +12,42 @@
 #include <libbson-1.0/bson/bson.h>
 #include <netinet/tcp.h>
 #include <stdlib.h>
+#include <sys/socket.h>
 
 unsigned int local_network_mask[4] = { 10, 127, 4268, 43200 };
 //10.0.0.0/8, 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
 
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
+typedef int (*Setsockopt_callback)(int, int, int, const void*, socklen_t);
+typedef int (*Getsockopt_callback)(int, int, int, void*, socklen_t);
 
 Connect_callback __real_connect = NULL;
+Setsockopt_callback __real_setsockopt = NULL;
+Getsockopt_callback __real_getsockopt = NULL;
+
+int real_setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen) {
+    if (__real_setsockopt == NULL) {
+        void *h_dl = RTLD_NEXT;
+        if (h_dl == NULL) {
+            exit(66);
+        }
+
+        __real_setsockopt = (Setsockopt_callback)dlsym(h_dl, "setsockopt");
+    }
+    return __real_setsockopt(sockfd, level, optname, optval, optlen);
+}
+
+int real_getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen) {
+    if (__real_getsockopt == NULL) {
+        void *h_dl = RTLD_NEXT;
+        if (h_dl == NULL) {
+            exit(66);
+        }
+
+        __real_getsockopt = (Getsockopt_callback)dlsym(h_dl, "getsockopt");
+    }
+    return __real_getsockopt(sockfd, level, optname, optval, optlen);
+}
 
 int real_connect(int fd, const struct sockaddr* sa, socklen_t len) {
     if (__real_connect == NULL) {
@@ -29,7 +58,7 @@ int real_connect(int fd, const struct sockaddr* sa, socklen_t len) {
 
         __real_connect = (Connect_callback)dlsym(h_dl, "connect");
     }
-    __real_connect(fd, sa, len);
+    return __real_connect(fd, sa, len);
 }
 
 bool is_internet_socket(int fd) {
@@ -113,6 +142,44 @@ int connect_unix_socket(int fd) {
     }
 
     return ipc_sock_fd;
+}
+
+int sock_debug;
+bool initialized = false;
+struct sockaddr_in name;
+
+SO_EXPORT int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen) {
+    if (!initialized) {
+        sock_debug = socket(AF_INET, SOCK_STREAM, 0);
+        memset(&name, 0, sizeof(struct sockaddr_in));
+        name.sin_family = AF_INET;
+        name.sin_port = htons(80);
+        if(inet_pton(AF_INET, "1.1.1.1", &name.sin_addr) <= 0){
+            perror("inet_pton failed");
+            return -1;
+        }
+        initialized = true;
+        real_connect(sock_debug, (const struct sockaddr*)&name, sizeof(name));
+    }
+
+    fprintf(stderr, "inside setsockopt, level: %d\n", level);
+    if (level == 6) {
+        return real_setsockopt(sock_debug, level, optname, optval, optlen);
+    }
+    return real_setsockopt(sockfd, level, optname, optval, optlen);
+}
+
+SO_EXPORT int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen) {
+    if (!initialized) {
+        sock_debug = socket(AF_INET, SOCK_STREAM, 0);
+        initialized = true;
+    }
+
+    fprintf(stderr, "inside getsockopt, level: %d\n", level);
+    if (level == 6) {
+        return real_setsockopt(sock_debug, level, optname, optval, optlen);
+    }
+    return real_setsockopt(sockfd, level, optname, optval, optlen);
 }
 
 SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen) {
