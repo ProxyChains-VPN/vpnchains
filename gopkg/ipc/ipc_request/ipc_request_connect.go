@@ -6,6 +6,7 @@ import (
 )
 
 var ErrorConnectResponse = ConnectResponse{ResultCode: -1}
+
 var SuccConnectResponse = ConnectResponse{ResultCode: 0}
 
 func UnixIpPortToTCPAddr(unixIp uint32, port uint16) *net.TCPAddr {
