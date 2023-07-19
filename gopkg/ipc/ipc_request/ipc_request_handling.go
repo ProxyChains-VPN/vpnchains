@@ -15,7 +15,7 @@ func NewRequestHandler(tunnel vpn.Tunnel) *RequestHandler {
 	return &RequestHandler{tunnel: tunnel}
 }
 
-func (handler *RequestHandler) ParseRequestType(requestBytes []byte) (string, error) {
+func (handler *RequestHandler) GetRequestType(requestBytes []byte) (string, error) {
 	err := bson.Raw(requestBytes).Validate()
 	if err != nil {
 		return "", err
