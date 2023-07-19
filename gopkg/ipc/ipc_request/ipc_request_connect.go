@@ -26,5 +26,5 @@ func (handler *RequestHandler) ConnectRequestFromBytes(requestBytes []byte) (*Co
 }
 
 func (handler *RequestHandler) ConnectResponseToBytes(response ConnectResponse) ([]byte, error) {
-	return bson.Marshal(response) // todo err handling
+	return bson.Marshal(response)
 }
