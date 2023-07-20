@@ -17,6 +17,9 @@ func NewRequestHandler() *RequestHandler {
 	return &RequestHandler{}
 }
 
+// GetRequestType A RequestHandler method that parses a bytearray and returns a string that represents
+// the type of the request, or an error if the bytearray is not a bson representation of a request with
+// a "call" field.
 func (handler *RequestHandler) GetRequestType(requestBytes []byte) (string, error) {
 	err := bson.Raw(requestBytes).Validate()
 	if err != nil {

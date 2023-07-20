@@ -8,6 +8,24 @@ import (
 	"strings"
 )
 
+// WireguardConfig represents a wireguard config file, that
+// is in the format of the following example:
+//
+// [Interface]
+// PrivateKey: ...
+// Address: ...
+// DNS: ...
+//
+// [Peer]
+// Endpoint: ...
+// AllowedIPs: ...
+// PublicKey: ...
+// PresharedKey: ...
+//
+// In fact, wireguard config files are actually INI files,
+// so we use the gopkg.in/ini.v1 package to parse them.
+//
+// See https://www.wireguard.com/quickstart/ for more information.
 type WireguardConfig struct {
 	Interface struct {
 		PrivateKey string   `ini:"PrivateKey"`
@@ -22,6 +40,8 @@ type WireguardConfig struct {
 	}
 }
 
+// WireguardConfigFromFile parses a wireguard config file.
+// path - path to the config file.
 func WireguardConfigFromFile(path string) (*WireguardConfig, error) {
 	var config WireguardConfig
 
@@ -49,7 +69,7 @@ func splitAddress(address string) (ip, port string, err error) {
 	return arr[0], arr[1], nil
 }
 
-func (config *WireguardConfig) AddressStringToNetipAddr() ([]netip.Addr, error) { // TODO rename
+func (config *WireguardConfig) addressStringToNetipAddr() ([]netip.Addr, error) { // TODO rename
 	var res []netip.Addr
 	for _, addr := range config.Interface.Address {
 		ip, _, err := splitAddress(addr)
@@ -67,7 +87,7 @@ func (config *WireguardConfig) AddressStringToNetipAddr() ([]netip.Addr, error) 
 	return res, nil
 }
 
-func (config *WireguardConfig) DnsStringToNetipAddr() ([]netip.Addr, error) { // TODO rename
+func (config *WireguardConfig) dnsStringToNetipAddr() ([]netip.Addr, error) { // TODO rename
 	var res []netip.Addr
 	for _, addr := range config.Interface.DNS {
 		netipAddr, err := netip.ParseAddr(addr)
@@ -79,7 +99,8 @@ func (config *WireguardConfig) DnsStringToNetipAddr() ([]netip.Addr, error) { //
 	return res, nil
 }
 
-func (config *WireguardConfig) Uapi() (string, error) {
+// UapiString returns a string that can be used while configurating the tunnel (IpcSet) todo.
+func (config *WireguardConfig) UapiString() (string, error) {
 	privateKeyDecoded, err := decodeKey(config.Interface.PrivateKey)
 	if err != nil {
 		return "", err
