@@ -25,7 +25,7 @@ func NewConnection(tcpAddr *net.TCPAddr) *IpcConnection {
 	return &IpcConnection{Addr: tcpAddr}
 }
 
-// NewConnection creates a new IpcConnection instance.
+// NewConnectionFromIpPort creates a new IpcConnection instance.
 // socketPath - path to the socket file.
 func NewConnectionFromIpPort(ip net.IP, port int) *IpcConnection {
 	return &IpcConnection{Addr: &net.TCPAddr{
