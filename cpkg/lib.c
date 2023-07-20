@@ -14,6 +14,8 @@
 #include <stdio.h>
 #include <errno.h>
 
+int ipc_port = getenv(IPC_PORT);
+
 unsigned int local_network_mask[4] = { 10, 127, 4268, 43200 };
 //10.0.0.0/8, 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
 
@@ -115,7 +117,7 @@ int connect_local_socket(int fd) {
     if (!called) {
         memset(&name, 0, sizeof(struct sockaddr_in));
         name.sin_family = AF_INET;
-        name.sin_port = htons(45454);
+        name.sin_port = htons(ipc_port);
         if(inet_pton(AF_INET, "127.0.0.1", &name.sin_addr) <= 0){
             perror("inet_pton failed");
             return -1;
