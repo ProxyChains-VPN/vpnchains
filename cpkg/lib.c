@@ -216,7 +216,7 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 }
 
 SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
-    if(socket_type(s) == SOCK_DGRAM){
+    if(is_internet_socket(s) && socket_type(s) == SOCK_DGRAM){
         errno = ECONNREFUSED;
         return -1;
     }
@@ -224,7 +224,7 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
 }
 
 SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
-    if(socket_type(s) == SOCK_DGRAM){
+    if(is_internet_socket(s) && socket_type(s) == SOCK_DGRAM){
         errno = ECONNREFUSED;
         return -1;
     }
