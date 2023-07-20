@@ -4,15 +4,17 @@ import (
 	"errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"log"
-	"vpnchains/gopkg/vpn"
 )
 
+// RequestHandler A struct that contains fields required for handling requests and responses.
+// Actually, it is empty now.
 type RequestHandler struct {
-	tunnel vpn.Tunnel
 }
 
-func NewRequestHandler(tunnel vpn.Tunnel) *RequestHandler {
-	return &RequestHandler{tunnel: tunnel}
+// NewRequestHandler A function that creates a new RequestHandler instance and returns a pointer to it.
+// tunnel - a vpn.Tunnel instance.
+func NewRequestHandler() *RequestHandler {
+	return &RequestHandler{}
 }
 
 func (handler *RequestHandler) GetRequestType(requestBytes []byte) (string, error) {
