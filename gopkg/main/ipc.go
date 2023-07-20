@@ -5,13 +5,12 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
 	"vpnchains/gopkg/ipc"
 	"vpnchains/gopkg/ipc/ipc_request"
 	"vpnchains/gopkg/vpn"
 )
 
-func handleIpcMessage(sockConn *net.TCPConn, requestHandler *ipc_request.RequestHandler, buf []byte, tunnel vpn.Tunnel) {
+func handleIpcMessage(sockConn *net.TCPConn, requestHandler *ipc_request.RequestHandler, buf []byte, bufSize int, tunnel vpn.Tunnel) {
 	n, err := sockConn.Read(buf)
 	requestBuf := buf[:n]
 
@@ -41,7 +40,7 @@ func handleIpcMessage(sockConn *net.TCPConn, requestHandler *ipc_request.Request
 
 		// client writes to server
 		go func() {
-			buf := make([]byte, BufSize)
+			buf := make([]byte, bufSize)
 			for {
 				n, err := sockConn.Read(buf)
 				if err != nil {
@@ -66,7 +65,7 @@ func handleIpcMessage(sockConn *net.TCPConn, requestHandler *ipc_request.Request
 
 		// server writes to client
 		go func() {
-			buf := make([]byte, BufSize)
+			buf := make([]byte, bufSize)
 			for {
 				n, err := endpointConn.Read(buf)
 				if err != nil {
@@ -102,21 +101,16 @@ func handleIpcMessage(sockConn *net.TCPConn, requestHandler *ipc_request.Request
 	}
 }
 
-func startIpcWithSubprocess(ready chan struct{}, tunnel vpn.Tunnel, ip net.IP, port uint16, bufsize int) {
-	err := os.Remove(DefaultSockAddr)
-	if err != nil {
-		log.Println(err)
-	}
+func startIpcWithSubprocess(ready chan struct{}, tunnel vpn.Tunnel, port int, bufSize int) {
+	var buf = make([]byte, bufSize)
 
-	var buf = make([]byte, BufSize)
-
-	conn := ipc.NewConnection(DefaultSockAddr)
+	conn := ipc.NewConnectionFromIpPort(net.IPv4(127, 0, 0, 1), port)
 	requestHandler := ipc_request.NewRequestHandler() // todo rename???
 
 	ready <- struct{}{}
-	err = conn.Listen(
+	err := conn.Listen(
 		func(sockConn *net.TCPConn) {
-			handleIpcMessage(sockConn, requestHandler, buf, tunnel)
+			handleIpcMessage(sockConn, requestHandler, buf, bufSize, tunnel)
 		},
 	)
 	if err != nil {
