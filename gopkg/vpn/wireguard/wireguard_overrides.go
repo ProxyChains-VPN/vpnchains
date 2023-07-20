@@ -10,13 +10,16 @@ import (
 	"time"
 )
 
+// Connect connects to the specified address.
+// Is used when intercepting connect() syscalls.
+// As sometimes connect() is called on non-blocking sockets, and we have blocking ones,
+// timeout is set to 4 seconds, so browsers are not stuck.
+// addr - address to connect to.
 func (tunnel *WireguardTunnel) Connect(addr *net.TCPAddr) (*gonet.TCPConn, error) { // todo достаточно net.Conn????
 	dialContext, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*4))
 	defer cancel()
 
 	socket, err := tunnel.Net.DialContextTCP(dialContext, addr)
-	//socket, err := tunnel.Net.DialTCP(addr)
-	//socket, err := net.DialTCP("tcp4", address)
 	if err != nil {
 		log.Println(err, "24 line overrides")
 		return nil, err
