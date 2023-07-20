@@ -18,7 +18,7 @@ unsigned int local_network_mask[4] = { 10, 127, 4268, 43200 };
 //10.0.0.0/8, 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
 
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
-typedef ssize_t (*Sendto_callback)(int, const void, size_t, int, const struct sockaddr, socklen_t);
+typedef ssize_t (*Sendto_callback)(int, const void*, size_t, int, const struct sockaddr*, socklen_t);
 
 Connect_callback __real_connect = NULL;
 Sendto_callback __real_sendto = NULL;
@@ -35,7 +35,7 @@ int real_connect(int fd, const struct sockaddr* sa, socklen_t len) {
     __real_connect(fd, sa, len);
 }
 
-ssize_t real_sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen); {
+ssize_t real_sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
     if (__real_sendto == NULL) {
         void *h_dl = RTLD_NEXT;
         if (h_dl == NULL) {
@@ -44,7 +44,7 @@ ssize_t real_sendto(int s, const void *msg, size_t len, int flags, const struct 
 
         __real_sendto = (Sendto_callback)dlsym(h_dl, "sendto");
     }
-    __real_sendto(fd, sa, len);
+    __real_sendto(s, msg, len, flags, to, tolen);
 }
 
 bool is_internet_socket(int fd) {
