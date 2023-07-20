@@ -12,13 +12,16 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 
 unsigned int local_network_mask[4] = { 10, 127, 4268, 43200 };
 //10.0.0.0/8, 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
 
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
+typedef ssize_t (*Sendto_callback)(int, const void, size_t, int, const struct sockaddr, socklen_t);
 
 Connect_callback __real_connect = NULL;
+Sendto_callback __real_sendto = NULL;
 
 int real_connect(int fd, const struct sockaddr* sa, socklen_t len) {
     if (__real_connect == NULL) {
@@ -30,6 +33,18 @@ int real_connect(int fd, const struct sockaddr* sa, socklen_t len) {
         __real_connect = (Connect_callback)dlsym(h_dl, "connect");
     }
     __real_connect(fd, sa, len);
+}
+
+ssize_t real_sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen); {
+    if (__real_sendto == NULL) {
+        void *h_dl = RTLD_NEXT;
+        if (h_dl == NULL) {
+            exit(66);
+        }
+
+        __real_sendto = (Sendto_callback)dlsym(h_dl, "sendto");
+    }
+    __real_sendto(fd, sa, len);
 }
 
 bool is_internet_socket(int fd) {
@@ -62,18 +77,9 @@ int socket_type(int fd){
 }
 
 bool is_stream_socket(int fd){
-    int socktype = 0;
-    socklen_t optlen = sizeof(socktype);
-
-    if(-1 == getsockopt(fd, SOL_SOCKET, SO_TYPE, &socktype, &optlen)){
-        perror("getsockopt() failed");
-        return false;
-    }
-
-    return socktype & SOCK_STREAM ? true : false;
+    return socket_type(fd) & SOCK_STREAM ? true : false;
 }
 
-// TODO починить
 bool is_localhost(const struct sockaddr *addr){
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
     unsigned int ip = sin->sin_addr.s_addr;
@@ -106,7 +112,6 @@ int connect_local_socket(int fd) {
     int tmp_sock_connect_res = real_connect(fd, (const struct sockaddr*)&name, sizeof(name));
     if (tmp_sock_connect_res == -1) {
         perror("Connect() tmp socket failed");
-        //fprintf(stderr, "%s\n", name.sun_path);
         close(fd);
         return -1;
     }
@@ -129,8 +134,6 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     unsigned int unixIp = sin->sin_addr.s_addr;
     fprintf(stderr, "[line124]connecting to %u.%u.%u.%u:%u\n\n", (unsigned char) unixIp, (unsigned char)(unixIp>>8), (unsigned char)(unixIp>>16), (unsigned char)(unixIp>>24), ntohs(sin->sin_port));
-
-//    return real_connect(sock_fd, addr, addrlen);
 
     int flags = fcntl(sock_fd, F_GETFL, 0);
     if (flags & O_NONBLOCK) {
@@ -187,6 +190,14 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     fprintf(stderr, "\n[line 172] connect result %d\n\n", res);
     return res;
+}
+
+SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
+    if(socket_type(s) == SOCK_DGRAM){
+        errno = ECONNREFUSED;
+        return -1;
+    }
+    return __real_sendto(s, msg, len, flags, to, tolen);
 }
 
 //SO_EXPORT int close(int fd) {
