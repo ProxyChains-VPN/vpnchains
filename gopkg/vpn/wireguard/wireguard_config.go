@@ -25,6 +25,8 @@ import (
 // In fact, wireguard config files are actually INI files,
 // so we use the gopkg.in/ini.v1 package to parse them.
 //
+// Todo: fix problems with lowercase and uppercase letters.
+//
 // See https://www.wireguard.com/quickstart/ for more information.
 type WireguardConfig struct {
 	Interface struct {
