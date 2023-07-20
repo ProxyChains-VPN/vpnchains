@@ -102,7 +102,7 @@ func handleIpcMessage(sockConn *net.TCPConn, requestHandler *ipc_request.Request
 	}
 }
 
-func startIpcWithSubprocess(ready chan struct{}, tunnel vpn.Tunnel) {
+func startIpcWithSubprocess(ready chan struct{}, tunnel vpn.Tunnel, ip net.IP, port uint16, bufsize int) {
 	err := os.Remove(DefaultSockAddr)
 	if err != nil {
 		log.Println(err)
@@ -111,7 +111,7 @@ func startIpcWithSubprocess(ready chan struct{}, tunnel vpn.Tunnel) {
 	var buf = make([]byte, BufSize)
 
 	conn := ipc.NewConnection(DefaultSockAddr)
-	requestHandler := ipc_request.NewRequestHandler(tunnel) // todo rename???
+	requestHandler := ipc_request.NewRequestHandler() // todo rename???
 
 	ready <- struct{}{}
 	err = conn.Listen(
