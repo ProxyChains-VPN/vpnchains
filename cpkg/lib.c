@@ -36,7 +36,7 @@ int real_connect(int fd, const struct sockaddr* sa, socklen_t len) {
 
         __real_connect = (Connect_callback)dlsym(h_dl, "connect");
     }
-    __real_connect(fd, sa, len);
+    return __real_connect(fd, sa, len);
 }
 
 ssize_t real_sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
@@ -48,7 +48,7 @@ ssize_t real_sendto(int s, const void *msg, size_t len, int flags, const struct 
 
         __real_sendto = (Sendto_callback)dlsym(h_dl, "sendto");
     }
-    __real_sendto(s, msg, len, flags, to, tolen);
+    return __real_sendto(s, msg, len, flags, to, tolen);
 }
 
 ssize_t real_recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
@@ -60,7 +60,7 @@ ssize_t real_recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *
 
         __real_recvfrom = (Recvfrom_callback)dlsym(h_dl, "recvfrom");
     }
-    __real_recvfrom(s, buf, len, flags, from, fromlen);
+    return __real_recvfrom(s, buf, len, flags, from, fromlen);
 }
 
 int get_ipc_port(){
