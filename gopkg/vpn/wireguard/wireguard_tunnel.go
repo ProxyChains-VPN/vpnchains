@@ -12,6 +12,11 @@ type WireguardTunnel struct {
 	Net *netstack.Net
 } // TODO инкапсулировать инкапсулируемое
 
+// NewTunnel creates a new tunnel.
+// localAddresses - local addresses of the tunnel.
+// dnsAddresses - dns addresses of the tunnel.
+// mtu - mtu of the tunnel.
+// uapiConfig - uapi config of the tunnel.
 func NewTunnel(localAddresses, dnsAddresses []netip.Addr, mtu int, uapiConfig string) (*WireguardTunnel, error) {
 	tun, tnet, err := netstack.CreateNetTUN(localAddresses, dnsAddresses, mtu)
 	if err != nil {
@@ -36,18 +41,21 @@ func NewTunnel(localAddresses, dnsAddresses []netip.Addr, mtu int, uapiConfig st
 	return tunnel, nil
 }
 
+// TunnelFromConfig creates a tunnel from a wireguard config.
+// config - wireguard config.
+// mtu - mtu of the tunnel.
 func TunnelFromConfig(config *WireguardConfig, mtu int) (*WireguardTunnel, error) {
-	localAddresses, err := config.AddressStringToNetipAddr()
+	localAddresses, err := config.addressStringToNetipAddr()
 	if err != nil {
 		return nil, err
 	}
 
-	dnsAddresses, err := config.DnsStringToNetipAddr()
+	dnsAddresses, err := config.dnsStringToNetipAddr()
 	if err != nil {
 		return nil, err
 	}
 
-	uapi, err := config.Uapi()
+	uapi, err := config.UapiString()
 	if err != nil {
 		return nil, err
 	}
@@ -55,6 +63,7 @@ func TunnelFromConfig(config *WireguardConfig, mtu int) (*WireguardTunnel, error
 	return NewTunnel(localAddresses, dnsAddresses, mtu, uapi)
 }
 
+// CloseTunnel closes the tunnel.
 func (tunnel *WireguardTunnel) CloseTunnel() {
 	tunnel.Dev.Close()
 }
