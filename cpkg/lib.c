@@ -220,7 +220,7 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
         errno = ECONNREFUSED;
         return -1;
     }
-    return __real_sendto(s, msg, len, flags, to, tolen);
+    return real_sendto(s, msg, len, flags, to, tolen);
 }
 
 SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
