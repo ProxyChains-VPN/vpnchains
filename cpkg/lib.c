@@ -104,6 +104,10 @@ bool is_ipv6_socket(int fd) {
     return socket_sa_family(fd) == AF_INET6;
 }
 
+bool is_internet_socket(int fd) {
+    return is_ipv4_socket(fd) || is_ipv6_socket(fd);
+}
+
 int socket_type(int fd){
     int socktype = 0;
     socklen_t optlen = sizeof(socktype);
@@ -130,6 +134,12 @@ bool is_stream_socket(int fd){
 
 // TODO починить
 bool is_localhost(const struct sockaddr *addr){
+    if (addr == NULL) {
+        return false;
+    }
+
+    assert(addr->sa_family != AF_UNIX);
+
     if (addr->sa_family == AF_INET) {
         struct sockaddr_in* sin = (struct sockaddr_in*)addr;
         unsigned int ip = sin->sin_addr.s_addr;
@@ -154,7 +164,7 @@ bool is_localhost(const struct sockaddr *addr){
 
         return memcmp(ip, &result2, sizeof(struct in6_addr)) == 0;
     }
-//
+
 //    for(int i; i < 4; i++){
 //        if(((ip & local_network_mask[i]) ^ local_network_mask[i]) == 0){
 //            return true;
@@ -164,7 +174,21 @@ bool is_localhost(const struct sockaddr *addr){
 
 }
 
-bool is_valid(const bson_t* bson);
+bool is_valid(const bson_t* bson){
+    if (!bson_validate(
+            bson,
+            BSON_VALIDATE_UTF8
+            | BSON_VALIDATE_DOLLAR_KEYS
+            | BSON_VALIDATE_DOT_KEYS
+            | BSON_VALIDATE_UTF8_ALLOW_NULL
+            | BSON_VALIDATE_EMPTY_KEYS,
+            NULL)) {
+        write(2, "Response bson is not valid\n", 27);
+        return false;
+    }
+    return true;
+}
+
 
 int connect_local_socket(int fd) {
     static bool called = false;
@@ -192,13 +216,13 @@ int connect_local_socket(int fd) {
 }
 
 SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen) {
-    if (is_ipv6_socket(sock_fd) && !is_localhost(addr)) {
-        errno = EAFNOSUPPORT; // TODO???
-        return -1;
+    if (!is_internet_socket(sock_fd) || !is_stream_socket(sock_fd) || is_localhost(addr)) {
+        return real_connect(sock_fd, addr, addrlen);
     }
 
-    if (!is_ipv4_socket(sock_fd) || !is_stream_socket(sock_fd) || is_localhost(addr)) {
-        return real_connect(sock_fd, addr, addrlen);
+    if (is_ipv6_socket(sock_fd)) {
+        errno = EAFNOSUPPORT; // todo
+        return -1;
     }
 
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
@@ -270,32 +294,29 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 }
 
 SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
-    if (is_ipv6_socket(s) && !is_localhost(to)) {
-        fprintf(stderr, "ipv6 send not local");
-//        errno = EAFNOSUPPORT; // TODO???
-//        return -1;
+    if (to == NULL) {
+        return real_sendto(s, msg, len, flags, to, tolen); // sock is connected
     }
 
-    if (is_ipv4_socket(s) && (socket_type(s) & SOCK_DGRAM) && !is_localhost(to)) {
-        fprintf(stderr, "sendto not local");
-//        errno = ECONNREFUSED;
-//        return -1;
+    if (is_internet_socket(s) && (socket_type(s) & SOCK_DGRAM) && !is_localhost(to)) {
+        fprintf(stderr, "ыутвещ not local");
+        errno = ECONNREFUSED;
+        return -1;
     }
     return real_sendto(s, msg, len, flags, to, tolen);
 }
 
 SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
-    if (is_ipv6_socket(s) && !is_localhost(from)) {
-        fprintf(stderr, "ipv6 recv not local");
-//        errno = EAFNOSUPPORT; // TODO???
-//        return -1;
+    if (from == NULL) {
+        return real_recvfrom(s, buf, len, flags, from, fromlen); // sock is connected
     }
-//
-    if (is_ipv4_socket(s) && (socket_type(s) & SOCK_DGRAM) && !is_localhost(from)) {
-        fprintf(stderr, "recvfrom not local");
-//        errno = ECONNREFUSED;
-//        return -1;
+
+    if (is_internet_socket(s) && (socket_type(s) & SOCK_DGRAM) && !is_localhost(from)) {
+        fprintf(stderr, "recv not local");
+        errno = ECONNREFUSED;
+        return -1;
     }
+
     return real_recvfrom(s, buf, len, flags, from, fromlen);
 }
 
@@ -303,18 +324,3 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
 //    fprintf(stderr, "closing fd %d", fd);
 //    return shutdown(fd, SHUT_RDWR);
 //}
-
-bool is_valid(const bson_t* bson){
-    if (!bson_validate(
-            bson,
-            BSON_VALIDATE_UTF8
-            | BSON_VALIDATE_DOLLAR_KEYS
-            | BSON_VALIDATE_DOT_KEYS
-            | BSON_VALIDATE_UTF8_ALLOW_NULL
-            | BSON_VALIDATE_EMPTY_KEYS,
-            NULL)) {
-        write(2, "Response bson is not valid\n", 27);
-        return false;
-    }
-    return true;
-}
