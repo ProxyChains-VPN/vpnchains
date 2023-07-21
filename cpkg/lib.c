@@ -23,12 +23,12 @@ int get_ipc_port(){
             perror("IPC_PORT is not set or set incorrectly");
             exit(1);
         }
-	    fprintf("\n\n\nipc_port = %d\n\n\n", ipc_port);
+	    fprintf(stderr, "\n\n\nipc_port = %d\n\n\n", ipc_port);
     }
     return ipc_port;
 }
 
-unsigned int local_network_mask[4] = { 10, 127, 4268, 43200 };
+//unsigned int local_network_mask[4] = { 10, 127, 4268, 43200 };
 //10.0.0.0/8, 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
 
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
@@ -75,10 +75,14 @@ ssize_t real_recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *
     return __real_recvfrom(s, buf, len, flags, from, fromlen);
 }
 
-bool is_internet_socket(int fd) {
+bool is_sock(int fd) {
     struct stat statbuf;
     fstat(fd, &statbuf);
-    if (!S_ISSOCK(statbuf.st_mode)){
+    return S_ISSOCK(statbuf.st_mode);
+}
+
+int socket_sa_family(int fd) {
+    if (!is_sock(fd)) {
         return false;
     }
 
@@ -89,7 +93,15 @@ bool is_internet_socket(int fd) {
         perror("getsockname() failed");
         return false;
     }
-    return addr.sa_family == AF_INET6 || addr.sa_family == AF_INET;
+    return addr.sa_family;
+}
+
+bool is_ipv4_socket(int fd) {
+    return socket_sa_family(fd) == AF_INET;
+}
+
+bool is_ipv6_socket(int fd) {
+    return socket_sa_family(fd) == AF_INET6;
 }
 
 int socket_type(int fd){
@@ -118,16 +130,38 @@ bool is_stream_socket(int fd){
 
 // TODO починить
 bool is_localhost(const struct sockaddr *addr){
-    struct sockaddr_in* sin = (struct sockaddr_in*)addr;
-    unsigned int ip = sin->sin_addr.s_addr;
-
-    for(int i; i < 4; i++){
-        if(((ip & local_network_mask[i]) ^ local_network_mask[i]) == 0){
-            return true;
-        }
+    if (addr->sa_family == AF_INET) {
+        struct sockaddr_in* sin = (struct sockaddr_in*)addr;
+        unsigned int ip = sin->sin_addr.s_addr;
+        return ip == 0 || ip == 0x0100007f;
     }
 
-    return ip == 0;
+    if (addr->sa_family == AF_INET6) {
+        struct sockaddr_in6* sin6 = (struct sockaddr_in6*)addr;
+        unsigned char* ip = sin6->sin6_addr.s6_addr;
+
+        const char *ip6str = "::1";
+        struct in6_addr result;
+        assert(inet_pton(AF_INET6, ip6str, &result) == 1);
+
+        if (memcmp(ip, &result, sizeof(struct in6_addr)) == 0) {
+            return true;
+        }
+
+        const char *ip6str2 = "::";
+        struct in6_addr result2;
+        assert(inet_pton(AF_INET6, ip6str2, &result2) == 1);
+
+        return memcmp(ip, &result2, sizeof(struct in6_addr)) == 0;
+    }
+//
+//    for(int i; i < 4; i++){
+//        if(((ip & local_network_mask[i]) ^ local_network_mask[i]) == 0){
+//            return true;
+//        }
+//    }
+
+
 }
 
 bool is_valid(const bson_t* bson);
@@ -158,7 +192,12 @@ int connect_local_socket(int fd) {
 }
 
 SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen) {
-    if (!is_internet_socket(sock_fd) || !is_stream_socket(sock_fd) || is_localhost(addr)) {
+    if (is_ipv6_socket(sock_fd) && !is_localhost(addr)) {
+        errno = EAFNOSUPPORT; // TODO???
+        return -1;
+    }
+
+    if (!is_ipv4_socket(sock_fd) || !is_stream_socket(sock_fd) || is_localhost(addr)) {
         return real_connect(sock_fd, addr, addrlen);
     }
 
@@ -172,8 +211,6 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     unsigned int unixIp = sin->sin_addr.s_addr;
     fprintf(stderr, "[line124]connecting to %u.%u.%u.%u:%u\n\n", (unsigned char) unixIp, (unsigned char)(unixIp>>8), (unsigned char)(unixIp>>16), (unsigned char)(unixIp>>24), ntohs(sin->sin_port));
-
-//    return real_connect(sock_fd, addr, addrlen);
 
     int flags = fcntl(sock_fd, F_GETFL, 0);
     if (flags & O_NONBLOCK) {
@@ -233,18 +270,32 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 }
 
 SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
-//    if(is_internet_socket(s) && socket_type(s) == SOCK_DGRAM && !is_localhost(to)){
+    if (is_ipv6_socket(s) && !is_localhost(to)) {
+        fprintf(stderr, "ipv6 send not local");
+//        errno = EAFNOSUPPORT; // TODO???
+//        return -1;
+    }
+
+    if (is_ipv4_socket(s) && (socket_type(s) & SOCK_DGRAM) && !is_localhost(to)) {
+        fprintf(stderr, "sendto not local");
 //        errno = ECONNREFUSED;
 //        return -1;
-//    }
+    }
     return real_sendto(s, msg, len, flags, to, tolen);
 }
 
 SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
-//    if(is_internet_socket(s) && socket_type(s) == SOCK_DGRAM && !is_localhost(from)){
+    if (is_ipv6_socket(s) && !is_localhost(from)) {
+        fprintf(stderr, "ipv6 recv not local");
+//        errno = EAFNOSUPPORT; // TODO???
+//        return -1;
+    }
+//
+    if (is_ipv4_socket(s) && (socket_type(s) & SOCK_DGRAM) && !is_localhost(from)) {
+        fprintf(stderr, "recvfrom not local");
 //        errno = ECONNREFUSED;
 //        return -1;
-//    }
+    }
     return real_recvfrom(s, buf, len, flags, from, fromlen);
 }
 
