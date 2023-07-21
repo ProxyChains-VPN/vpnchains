@@ -18,8 +18,37 @@ unsigned int local_network_mask[4] = { 10, 127, 4268, 43200 };
 //10.0.0.0/8, 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
 
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
+typedef ssize_t (*Sendto_callback)(int, const void*, size_t, int, const struct sockaddr*, socklen_t);
+typedef ssize_t (*Recvfrom_callback)(int, void*, size_t, int, struct sockaddr*, socklen_t*);
 
 Connect_callback __real_connect = NULL;
+Sendto_callback __real_sendto = NULL;
+Recvfrom_callback __real_recvfrom = NULL;
+
+ssize_t real_sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
+    if (__real_sendto == NULL) {
+        void *h_dl = RTLD_NEXT;
+        if (h_dl == NULL) {
+            exit(66);
+        }
+
+        __real_sendto = (Sendto_callback)dlsym(h_dl, "sendto");
+    }
+    return __real_sendto(s, msg, len, flags, to, tolen);
+}
+
+ssize_t real_recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
+    if (__real_recvfrom == NULL) {
+        void *h_dl = RTLD_NEXT;
+        if (h_dl == NULL) {
+            exit(66);
+        }
+
+        __real_recvfrom = (Recvfrom_callback)dlsym(h_dl, "recvfrom");
+    }
+    return __real_recvfrom(s, buf, len, flags, from, fromlen);
+}
+
 
 int real_connect(int fd, const struct sockaddr* sa, socklen_t len) {
     if (__real_connect == NULL) {
@@ -30,7 +59,7 @@ int real_connect(int fd, const struct sockaddr* sa, socklen_t len) {
 
         __real_connect = (Connect_callback)dlsym(h_dl, "connect");
     }
-    __real_connect(fd, sa, len);
+    return __real_connect(fd, sa, len);
 }
 
 bool is_internet_socket(int fd) {
@@ -74,7 +103,6 @@ bool is_stream_socket(int fd){
     return socktype & SOCK_STREAM ? true : false;
 }
 
-// TODO починить
 bool is_localhost(const struct sockaddr *addr){
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
     unsigned int ip = sin->sin_addr.s_addr;
@@ -204,6 +232,22 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     return res;
 }
 
+SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
+    if(is_internet_socket(s) && socket_type(s) == SOCK_DGRAM && !is_localhost(to)){
+        errno = ECONNREFUSED;
+        return -1;
+    }
+    return real_sendto(s, msg, len, flags, to, tolen);
+}
+
+SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
+    if(is_internet_socket(s) && socket_type(s) == SOCK_DGRAM && !is_localhost(from)){
+        errno = ECONNREFUSED;
+        return -1;
+    }
+    return real_recvfrom(s, buf, len, flags, from, fromlen);
+}
+
 //SO_EXPORT int close(int fd) {
 //    fprintf(stderr, "closing fd %d", fd);
 //    return shutdown(fd, SHUT_RDWR);
@@ -223,3 +267,5 @@ bool is_valid(const bson_t* bson){
     }
     return true;
 }
+
+
