@@ -222,18 +222,23 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
         return -1;
     }
 
-    if ((socket_type(sock_fd) & SOCK_DGRAM) && !is_localhost(addr)) {
-        errno = ECONNREFUSED;
-        return -1;
-    }
-
-    if (is_ipv6_socket(sock_fd) && !is_localhost(addr)) {
-        errno = EAFNOSUPPORT; // todo
+    if (!is_sock(sock_fd)) {
+        errno = ENOTSOCK;
         return -1;
     }
 
     if (is_unix_socket(sock_fd) || is_localhost(addr)) {
         return real_connect(sock_fd, addr, addrlen);
+    }
+
+    if (is_ipv6_socket(sock_fd)) {
+        errno = EAFNOSUPPORT; // todo
+        return -1;
+    }
+
+    if (socket_type(sock_fd) & SOCK_DGRAM) {
+        errno = ECONNREFUSED;
+        return -1;
     }
 
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
@@ -314,7 +319,7 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
 }
 
 SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
-    if (is_internet_socket(s) && (socket_type(s) & SOCK_DGRAM) && (from == NULL && !is_localhost(from))) {
+    if (is_internet_socket(s) && (socket_type(s) & SOCK_DGRAM) && (from == NULL || !is_localhost(from))) {
         fprintf(stderr, "recv not local");
         errno = ECONNREFUSED;
         return -1;
