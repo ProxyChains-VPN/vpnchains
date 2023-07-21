@@ -96,6 +96,10 @@ int socket_sa_family(int fd) {
     return addr.sa_family;
 }
 
+bool is_unix_socket(int fd) {
+    return socket_sa_family(fd) == AF_UNIX;
+}
+
 bool is_ipv4_socket(int fd) {
     return socket_sa_family(fd) == AF_INET;
 }
@@ -134,10 +138,7 @@ bool is_stream_socket(int fd){
 
 // TODO починить
 bool is_localhost(const struct sockaddr *addr){
-    if (addr == NULL) {
-        return false;
-    }
-
+    assert(addr != NULL);
     assert(addr->sa_family != AF_UNIX);
 
     if (addr->sa_family == AF_INET) {
@@ -216,13 +217,23 @@ int connect_local_socket(int fd) {
 }
 
 SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen) {
-    if (!is_internet_socket(sock_fd) || !is_stream_socket(sock_fd) || is_localhost(addr)) {
-        return real_connect(sock_fd, addr, addrlen);
+    if (addr == NULL) {
+        errno = EFAULT;
+        return -1;
     }
 
-    if (is_ipv6_socket(sock_fd)) {
+    if ((socket_type(sock_fd) & SOCK_DGRAM) && !is_localhost(addr)) {
+        errno = ECONNREFUSED;
+        return -1;
+    }
+
+    if (is_ipv6_socket(sock_fd) && !is_localhost(addr)) {
         errno = EAFNOSUPPORT; // todo
         return -1;
+    }
+
+    if (is_unix_socket(sock_fd) || is_localhost(addr)) {
+        return real_connect(sock_fd, addr, addrlen);
     }
 
     struct sockaddr_in* sin = (struct sockaddr_in*)addr;
@@ -294,11 +305,7 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 }
 
 SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
-    if (to == NULL) {
-        return real_sendto(s, msg, len, flags, to, tolen); // sock is connected
-    }
-
-    if (is_internet_socket(s) && (socket_type(s) & SOCK_DGRAM) && !is_localhost(to)) {
+    if (is_internet_socket(s) && (socket_type(s) & SOCK_DGRAM) && (to == NULL || !is_localhost(to))) {
         fprintf(stderr, "ыутвещ not local");
         errno = ECONNREFUSED;
         return -1;
@@ -307,11 +314,7 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
 }
 
 SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
-    if (from == NULL) {
-        return real_recvfrom(s, buf, len, flags, from, fromlen); // sock is connected
-    }
-
-    if (is_internet_socket(s) && (socket_type(s) & SOCK_DGRAM) && !is_localhost(from)) {
+    if (is_internet_socket(s) && (socket_type(s) & SOCK_DGRAM) && (from == NULL && !is_localhost(from))) {
         fprintf(stderr, "recv not local");
         errno = ECONNREFUSED;
         return -1;
