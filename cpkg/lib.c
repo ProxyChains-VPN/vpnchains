@@ -14,13 +14,17 @@
 #include <stdio.h>
 #include <stdint.h>
 
+
+/*
+ * Gets the IPC port from the environment variable VPNCHAINS_IPC_SERVER_PORT.
+ */
 int ipc_port = -1;
 int get_ipc_port(){
     if (ipc_port == -1) {
         errno = 0;
-	    ipc_port = strtoul(getenv(IPC_PORT), NULL, 10);
+	    ipc_port = strtoul(getenv(IPC_PORT_ENV_VAR), NULL, 10);
 	    if (errno != 0) { // CRINGE CRINGE CRINGE CRINGE
-            perror("IPC_PORT is not set or set incorrectly");
+            perror("IPC_PORT_ENV_VAR is not set or set incorrectly");
             exit(1);
         }
 	    fprintf(stderr, "\n\n\nipc_port = %d\n\n\n", ipc_port);
@@ -28,9 +32,10 @@ int get_ipc_port(){
     return ipc_port;
 }
 
-//unsigned int local_network_mask[4] = { 10, 127, 4268, 43200 };
-//10.0.0.0/8, 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
 
+/*
+ * Callbacks.
+ */
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
 typedef ssize_t (*Sendto_callback)(int, const void*, size_t, int, const struct sockaddr*, socklen_t);
 typedef ssize_t (*Recvfrom_callback)(int, void*, size_t, int, struct sockaddr*, socklen_t*);
@@ -41,40 +46,29 @@ Recvfrom_callback __real_recvfrom = NULL;
 
 int real_connect(int fd, const struct sockaddr* sa, socklen_t len) {
     if (__real_connect == NULL) {
-        void *h_dl = RTLD_NEXT;
-        if (h_dl == NULL) {
-            exit(66);
-        }
-
-        __real_connect = (Connect_callback)dlsym(h_dl, "connect");
+        __real_connect = (Connect_callback)dlsym(RTLD_NEXT, "connect");
     }
     return __real_connect(fd, sa, len);
 }
 
 ssize_t real_sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
     if (__real_sendto == NULL) {
-        void *h_dl = RTLD_NEXT;
-        if (h_dl == NULL) {
-            exit(66);
-        }
-
-        __real_sendto = (Sendto_callback)dlsym(h_dl, "sendto");
+        __real_sendto = (Sendto_callback)dlsym(RTLD_NEXT, "sendto");
     }
     return __real_sendto(s, msg, len, flags, to, tolen);
 }
 
 ssize_t real_recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
     if (__real_recvfrom == NULL) {
-        void *h_dl = RTLD_NEXT;
-        if (h_dl == NULL) {
-            exit(66);
-        }
-
-        __real_recvfrom = (Recvfrom_callback)dlsym(h_dl, "recvfrom");
+        __real_recvfrom = (Recvfrom_callback)dlsym(RTLD_NEXT, "recvfrom");
     }
     return __real_recvfrom(s, buf, len, flags, from, fromlen);
 }
 
+
+/*
+ * Socket utils.
+ */
 bool is_sock(int fd) {
     struct stat statbuf;
     fstat(fd, &statbuf);
@@ -96,20 +90,9 @@ int socket_sa_family(int fd) {
     return addr.sa_family;
 }
 
-bool is_unix_socket(int fd) {
-    return socket_sa_family(fd) == AF_UNIX;
-}
-
-bool is_ipv4_socket(int fd) {
-    return socket_sa_family(fd) == AF_INET;
-}
-
-bool is_ipv6_socket(int fd) {
-    return socket_sa_family(fd) == AF_INET6;
-}
-
 bool is_internet_socket(int fd) {
-    return is_ipv4_socket(fd) || is_ipv6_socket(fd);
+    int sa = socket_sa_family(fd);
+    return sa == AF_INET || sa == AF_INET6;
 }
 
 int socket_type(int fd){
@@ -122,18 +105,6 @@ int socket_type(int fd){
     }
 
     return socktype;
-}
-
-bool is_stream_socket(int fd){
-    int socktype = 0;
-    socklen_t optlen = sizeof(socktype);
-
-    if(-1 == getsockopt(fd, SOL_SOCKET, SO_TYPE, &socktype, &optlen)){
-        perror("getsockopt() failed");
-        return false;
-    }
-
-    return socktype & SOCK_STREAM ? true : false;
 }
 
 // TODO починить
@@ -165,16 +136,11 @@ bool is_localhost(const struct sockaddr *addr){
 
         return memcmp(ip, &result2, sizeof(struct in6_addr)) == 0;
     }
-
-//    for(int i; i < 4; i++){
-//        if(((ip & local_network_mask[i]) ^ local_network_mask[i]) == 0){
-//            return true;
-//        }
-//    }
-
-
 }
 
+/*
+ * Bson utils.
+ */
 bool is_valid(const bson_t* bson){
     if (!bson_validate(
             bson,
@@ -191,6 +157,9 @@ bool is_valid(const bson_t* bson){
 }
 
 
+/*
+ * IPC utils.
+ */
 int connect_local_socket(int fd) {
     static bool called = false;
     static struct sockaddr_in name;
@@ -216,6 +185,11 @@ int connect_local_socket(int fd) {
     return tmp_sock_connect_res;
 }
 
+
+
+/*
+ * Function overrides.
+ */
 SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrlen) {
     if (addr == NULL) {
         errno = EFAULT;
@@ -227,11 +201,11 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
         return -1;
     }
 
-    if (is_unix_socket(sock_fd) || is_localhost(addr)) {
+    if (socket_sa_family(sock_fd) == AF_UNIX || is_localhost(addr)) {
         return real_connect(sock_fd, addr, addrlen);
     }
 
-    if (is_ipv6_socket(sock_fd)) {
+    if (socket_sa_family(sock_fd) == AF_INET6) {
         errno = EAFNOSUPPORT; // todo
         return -1;
     }
@@ -327,8 +301,3 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
 
     return real_recvfrom(s, buf, len, flags, from, fromlen);
 }
-
-//SO_EXPORT int close(int fd) {
-//    fprintf(stderr, "closing fd %d", fd);
-//    return shutdown(fd, SHUT_RDWR);
-//}
