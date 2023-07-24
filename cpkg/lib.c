@@ -211,6 +211,7 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     }
 
     if (socket_type(sock_fd) & SOCK_DGRAM) {
+        fprintf(stderr, "!! stupid connect on udp, pid %d\n\n", getpid());
         errno = ECONNREFUSED;
         return -1;
     }
@@ -285,16 +286,16 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
 SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
     if (is_internet_socket(s) && (socket_type(s) & SOCK_DGRAM) && (to == NULL || !is_localhost(to))) {
-        fprintf(stderr, "ыутвещ not local");
-        errno = ECONNREFUSED;
-        return -1;
+        fprintf(stderr, "!! send not local on pid %d\n", getpid());
+        return 0;
     }
+
     return real_sendto(s, msg, len, flags, to, tolen);
 }
 
 SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
     if (is_internet_socket(s) && (socket_type(s) & SOCK_DGRAM) && (from == NULL || !is_localhost(from))) {
-        fprintf(stderr, "recv not local");
+        fprintf(stderr, "!! recv not local on pid %d\n", getpid());
         errno = ECONNREFUSED;
         return -1;
     }
