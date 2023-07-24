@@ -1,8 +1,6 @@
 package main
 
 import (
-	"errors"
-	"io"
 	"log"
 	"net"
 	"vpnchains/gopkg/ipc"
@@ -44,21 +42,19 @@ func handleIpcMessage(sockConn *net.TCPConn, requestHandler *ipc_request.Request
 			for {
 				n, err := sockConn.Read(buf)
 				if err != nil {
-					if errors.Is(err, io.EOF) {
-						log.Println("closing endpoint write and socket read")
-						sockConn.CloseRead()
-						//endpointConn.CloseWrite()
-						return
-					} else {
-						log.Println("read from client", err)
-						continue
-					}
+					log.Println("read from client", err)
+					log.Println("closing endpoint write and socket read")
+					endpointConn.CloseWrite()
+					sockConn.CloseRead()
+					return
 				}
-				//log.Println("READ FROM CLIENT", string(buf[:n]))
 				_, err = endpointConn.Write(buf[:n])
 				if err != nil {
 					log.Println("write to server", err)
-					continue
+					log.Println("closing endpoint write and socket read")
+					endpointConn.CloseWrite()
+					sockConn.CloseRead()
+					return
 				}
 			}
 		}()
@@ -69,21 +65,21 @@ func handleIpcMessage(sockConn *net.TCPConn, requestHandler *ipc_request.Request
 			for {
 				n, err := endpointConn.Read(buf)
 				if err != nil {
-					if errors.Is(err, io.EOF) {
-						log.Println("closing endpoint read and socket write")
-						//endpointConn.CloseRead()
-						sockConn.CloseWrite()
-						return
-					} else {
-						log.Println("read from server", err)
-						continue
-					}
+					//if errors.Is(err, io.EOF) {
+					log.Println("read from server", err)
+					log.Println("closing endpoint read and socket write")
+					endpointConn.CloseRead()
+					sockConn.CloseWrite()
+					return
 				}
 				//log.Println("READ FROM SERVER", string(buf[:n]))
 				_, err = sockConn.Write(buf[:n]) // todo если что в несколько раз отправить?????
 				if err != nil {
 					log.Println("write to client", err)
-					continue
+					log.Println("closing endpoint read and socket write")
+					endpointConn.CloseRead()
+					sockConn.CloseWrite()
+					return
 				}
 			}
 		}()
