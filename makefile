@@ -18,7 +18,7 @@ all: pre app lib
 pre:
 	mkdir -p $(VPNCHAINS_OUTPUT_DIR)
 app: pre
-	$(GO_CC) -o $(VPNCHAINS_OUTPUT_DIR)/$(VPNCHAINS_EXECUTABLE_NAME) gopkg/main/main.go gopkg/main/ipc.go
+	$(GO_CC) -o $(VPNCHAINS_OUTPUT_DIR)/$(VPNCHAINS_EXECUTABLE_NAME) gopkg/main/*.go
 lib: pre
 	$(C_CC) -shared -fPIC -fvisibility=hidden -o $(VPNCHAINS_OUTPUT_DIR)/$(VPNCHAINS_LIB_NAME) cpkg/lib.c -lbson-1.0
 test: pre
