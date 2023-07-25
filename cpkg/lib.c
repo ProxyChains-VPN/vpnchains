@@ -440,8 +440,10 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
 
         if(from != NULL){
             struct sockaddr_in* from_in = (struct sockaddr_in*)from;
+            from_in->sin_family = AF_INET;
             from_in->sin_addr.s_addr = src_ip;
             from_in->sin_port = src_port;
+            *fromlen = sizeof(from_in);
         }
 
         bson_reader_destroy(reader);
