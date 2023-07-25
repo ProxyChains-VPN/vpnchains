@@ -96,31 +96,26 @@ func main() {
 	err := os.Setenv(IpcServerPortEnvVar, strconv.Itoa(*ipcServerPort))
 	if err != nil {
 		log.Fatalln(err)
-		os.Exit(1)
 	}
 
 	config, err := wireguard.WireguardConfigFromFile(*wireguardConfigPath)
 	if err != nil {
 		log.Fatalln(err)
-		os.Exit(1)
 	}
 
 	tunnel, err := wireguard.TunnelFromConfig(config, *mtu)
 	if err != nil {
 		log.Fatalln(err)
-		os.Exit(1)
 	}
 	defer tunnel.CloseTunnel()
 
 	cmd := ipc.CreateCommandWithInjectedLibrary(*injectedLibPath, commandPath, commandArgs)
 
 	ready := make(chan struct{})
-	go startIpcWithSubprocess(ready, tunnel, tunnel, *ipcServerPort, *bufSize)
-
-	<-ready
+	startIpcWithSubprocess(ready, tunnel, tunnel, *ipcServerPort, *bufSize)
+	
 	err = cmd.Run()
 	if err != nil {
 		log.Fatalln("subprocess says,", err)
-		os.Exit(1)
 	}
 }
