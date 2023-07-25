@@ -354,25 +354,21 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
         BSON_APPEND_INT64(&bson_request, "pid", getpid());
         BSON_APPEND_INT32(&bson_request, "fd", s);
         BSON_APPEND_INT64(&bson_request, "msg_len", len);
-        if(from != NULL){
-            struct sockaddr_in* sin = (struct sockaddr_in*)from;
-            BSON_APPEND_INT32(&bson_request, "src_ip", sin->sin_addr.s_addr);
-            BSON_APPEND_INT32(&bson_request, "src_port", ntohs(sin->sin_port));
-        }
 
         real_sendto(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len, 0, (const struct sockaddr*)&name, sizeof(name));
 
         bson_destroy(&bson_request);
         
-	uint8_t *buf = (uint8_t*)malloc(len);
+
+	    uint8_t *buf = (uint8_t*)malloc(len);
         socklen_t name_len = sizeof(name);
-	if(-1 == real_recvfrom(ipc_sock_fd, (void*)buf, len, 0, (struct sockaddr*)&name, &name_len)){
+	    if(-1 == real_recvfrom(ipc_sock_fd, (void*)buf, len, 0, (struct sockaddr*)&name, &name_len)){
     	    if(EAGAIN == errno){
-		return -1;
+		        return -1;
     	    }
-    	    perror("recvfrom() ipc socket failed:\n");
-    	    return -1;
-	}
+    	perror("recvfrom() ipc socket failed:\n");
+    	   return -1;
+	    }
         bson_reader_t* reader = bson_reader_new_from_data(buf, sizeof(buf));
 
         const bson_t* bson_response = bson_reader_read(reader, NULL);
@@ -385,7 +381,11 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
         bson_iter_t iter;
         bson_iter_t bson_bytes_read;
         bson_iter_t bson_msg;
+        bson_iter_t bson_src_ip;
+        bson_iter_t bson_src_port;
         int bytes_read;
+        int src_ip;
+        int src_port;
         void *binary_data;
         if (!bson_iter_init(&iter, bson_response)){
             perror("Failed to parse bson: bson_iter_init");
@@ -402,6 +402,16 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
             return -1;
         }
 
+        if (!bson_iter_find_descendant(&iter, "src_ip", &bson_src_ip)){
+            perror("Failed to parse bson: can't find 'src_ip'");
+            return -1;
+        }
+
+        if (!bson_iter_find_descendant(&iter, "src_port", &bson_src_port)){
+            perror("Failed to parse bson: can't find 'src_port'");
+            return -1;
+        }
+
         if (!BSON_ITER_HOLDS_INT64(&bson_bytes_read)){
             perror("Failed to parse bson: 'bytes_read' is not int64");
             return -1;
@@ -412,9 +422,27 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
             return -1;
         }
 
+        if (!BSON_ITER_HOLDS_INT32(&bson_src_ip)){
+            perror("Failed to parse bson: 'src_ip' is not int32");
+            return -1;
+        }
+
+        if (!BSON_ITER_HOLDS_INT32(&bson_src_port)){
+            perror("Failed to parse bson: 'src_port' is not int32");
+            return -1;
+        }
+
         bytes_read = bson_iter_int64(&bson_bytes_read);
         bson_iter_binary(&bson_msg, BSON_SUBTYPE_BINARY, &bytes_read, (const uint8_t**)&binary_data);
         memcpy(buf, binary_data, bytes_read);
+        src_ip = bson_iter_int32(&bson_src_ip);
+        src_port = bson_iter_int32(&bson_src_port);
+
+        if(from != NULL){
+            struct sockaddr_in* from_in = (struct sockaddr_in*)from;
+            from_in->sin_addr.s_addr = src_ip;
+            from_in->sin_port = src_port;
+        }
 
         bson_reader_destroy(reader);
 
