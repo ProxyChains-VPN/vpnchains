@@ -1,4 +1,4 @@
-package tcp_ipc
+package udp_ipc
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ type UdpIpcConnection struct {
 // UdpIpcCommunicator An interface that represents an IPC communicator.
 // Read(handler func(conn *net.UDPConn)) - reads from the local socket.
 type UdpIpcCommunicator interface {
-	Read(handler func(srcAddr *net.UDPAddr, buf []byte)) error
+	ReadLoop(handler func(srcAddr *net.UDPAddr, buf []byte)) error
 }
 
 // NewConnection creates a new UdpIpcConnection instance.
@@ -43,7 +43,7 @@ func NewConnectionFromIpPort(ip net.IP, port int, bufSize int) UdpIpcCommunicato
 
 // Read listens to the local socket.
 // handler - a function that handles the connection.
-func (ipcConnection *UdpIpcConnection) Read(handler func(*net.UDPAddr, []byte)) error {
+func (ipcConnection *UdpIpcConnection) ReadLoop(handler func(*net.UDPAddr, []byte)) error {
 	socket, err := net.ListenUDP("udp", ipcConnection.addr)
 	if err != nil {
 		return err

@@ -5,11 +5,25 @@ import (
 	"net"
 	"vpnchains/gopkg/ipc"
 	"vpnchains/gopkg/ipc/tcp_ipc"
-	"vpnchains/gopkg/ipc/tcp_ipc/tcp_ipc_request"
+	"vpnchains/gopkg/ipc/udp_ipc"
+	"vpnchains/gopkg/ipc_request/tcp_ipc_request"
 	"vpnchains/gopkg/vpn"
 )
 
-func handleIpcMessage(sockConn *net.TCPConn, buf []byte, bufSize int, tunnel vpn.TcpTunnel) {
+func handleUdpIpcMessage(sockConn *net.UDPConn, requestPacket []byte, bufSize int, tunnel vpn.UdpTunnel) {
+	requestType, err := ipc.GetRequestType(requestPacket)
+	if err != nil {
+		log.Println("ERROR PARSING", err)
+		return
+	}
+
+	switch requestType {
+	case "recvfrom":
+	}
+}
+
+func handleTcpIpcMessage(sockConn *net.TCPConn, bufSize int, tunnel vpn.TcpTunnel) {
+	buf := make([]byte, bufSize)
 	n, err := sockConn.Read(buf)
 	requestBuf := buf[:n]
 
@@ -18,6 +32,10 @@ func handleIpcMessage(sockConn *net.TCPConn, buf []byte, bufSize int, tunnel vpn
 	}
 
 	requestType, err := ipc.GetRequestType(requestBuf)
+	if err != nil {
+		log.Println("ERROR PARSING", err)
+		return
+	}
 
 	switch requestType {
 	case "connect":
@@ -99,18 +117,19 @@ func handleIpcMessage(sockConn *net.TCPConn, buf []byte, bufSize int, tunnel vpn
 }
 
 func startIpcWithSubprocess(ready chan struct{}, tunnel vpn.TcpTunnel, port int, bufSize int) {
-	var buf = make([]byte, bufSize)
-
-	conn := tcp_ipc.NewConnectionFromIpPort(net.IPv4(127, 0, 0, 1), port)
+	tcpConn := tcp_ipc.NewConnectionFromIpPort(net.IPv4(127, 0, 0, 1), port)
+	udpConn := udp_ipc.NewConnectionFromIpPort(net.IPv4(127, 0, 0, 1), port, bufSize)
 
 	ready <- struct{}{}
-	err := conn.Listen(
+	err := tcpConn.Listen(
 		func(sockConn *net.TCPConn) {
-			handleIpcMessage(sockConn, buf, bufSize, tunnel)
+			handleTcpIpcMessage(sockConn, bufSize, tunnel)
 		},
 	)
 	if err != nil {
 		log.Println("unable to start listening", err)
 		log.Fatalln(err)
 	}
+
+	err = udpConn.ReadLoop()
 }
