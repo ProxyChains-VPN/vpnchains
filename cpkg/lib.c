@@ -160,6 +160,7 @@ bool is_valid(const bson_t* bson){
 /*
  * IPC utils.
  */
+
 int connect_local_socket(int fd) {
     static bool called = false;
     static struct sockaddr_in name;
@@ -185,8 +186,6 @@ int connect_local_socket(int fd) {
     return tmp_sock_connect_res;
 }
 
-
-
 /*
  * Function overrides.
  */
@@ -211,7 +210,6 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     }
 
     if (socket_type(sock_fd) & SOCK_DGRAM) {
-        fprintf(stderr, "!! stupid connect on udp, pid %d\n\n", getpid());
         errno = ECONNREFUSED;
         return -1;
     }
@@ -286,16 +284,79 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
 SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
     if (is_internet_socket(s) && (socket_type(s) & SOCK_DGRAM) && (to == NULL || !is_localhost(to))) {
-        fprintf(stderr, "!! send not local on pid %d\n", getpid());
-        return 0;
-    }
+        /*fprintf(stderr, "ыутвещ not local");
+        errno = ECONNREFUSED;
+        return -1;*/
 
+        int ipc_sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
+        if (ipc_sock_fd == -1) {
+            perror("Failed to open udp socket");
+            return -1;
+        }
+        struct sockaddr_in name;
+        memset(&name, 0, sizeof(struct sockaddr_in));
+        name.sin_family = AF_INET;
+        name.sin_port = htons(get_ipc_port());
+        if(inet_pton(AF_INET, "127.0.0.1", &name.sin_addr) <= 0){
+            perror("inet_pton failed");
+            return -1;
+        }
+
+        bson_t bson_request = BSON_INITIALIZER;
+        BSON_APPEND_UTF8(&bson_request, "call", "sendto");
+        BSON_APPEND_BINARY(&bson_request, "msg", BSON_SUBTYPE_BINARY, msg, len);
+        BSON_APPEND_INT64(&bson_request, "msg_len", len);
+        if(to != NULL){
+            struct sockaddr_in* sin = (struct sockaddr_in*)to;
+            BSON_APPEND_INT32(&bson_request, "dest_ip", sin->sin_addr.s_addr);
+            BSON_APPEND_INT32(&bson_request, "dest_port", ntohs(sin->sin_port));
+        }
+        BSON_APPEND_INT64(&bson_request, "pid", getpid());
+        BSON_APPEND_INT32(&bson_request, "fd", s);
+
+        real_sendto(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len, 0, (const struct sockaddr*)&name, sizeof(name));
+
+        bson_destroy(&bson_request);
+
+        bson_reader_t* reader = bson_reader_new_from_fd(ipc_sock_fd, false);
+        const bson_t* bson_response = bson_reader_read(reader, NULL);
+        if (!is_valid(bson_response)){
+            return -1;
+        }
+
+        int res = -1;
+
+        bson_iter_t iter;
+        bson_iter_t bytes_written;
+        if (!bson_iter_init(&iter, bson_response)){
+            perror("Failed to parse bson: bson_iter_init");
+            return -1;
+        }
+
+        if (!bson_iter_find_descendant(&iter, "bytes_written", &bytes_written)){
+            perror("Failed to parse bson: can't find 'bytes_written'");
+            return -1;
+        }
+
+        if (!BSON_ITER_HOLDS_INT64(&bytes_written)){
+            perror("Failed to parse bson: 'bytes_written' is not int64");
+            return -1;
+        }
+
+        res = bson_iter_int64(&bytes_written);
+
+        bson_reader_destroy(reader);
+        
+        return res;
+
+    }
+    
     return real_sendto(s, msg, len, flags, to, tolen);
 }
 
 SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
     if (is_internet_socket(s) && (socket_type(s) & SOCK_DGRAM) && (from == NULL || !is_localhost(from))) {
-        fprintf(stderr, "!! recv not local on pid %d\n", getpid());
+        fprintf(stderr, "recv not local");
         errno = ECONNREFUSED;
         return -1;
     }
