@@ -22,11 +22,9 @@ type SendtoRequest struct {
 //
 // syscall arguments.
 type RecvfromRequest struct {
-	Pid     int64  `bson:"pid"`
-	Fd      int32  `bson:"fd"`
-	MsgLen  uint64 `bson:"msg_len"`
-	SrcIp   int32  `bson:"src_ip"`
-	SrcPort uint16 `bson:"src_port"`
+	Pid    int64  `bson:"pid"`
+	Fd     int32  `bson:"fd"`
+	MsgLen uint64 `bson:"msg_len"`
 }
 
 // RecvfromResponse A wrapper struct for
@@ -38,4 +36,6 @@ type RecvfromRequest struct {
 type RecvfromResponse struct {
 	BytesRead int64  `bson:"bytes_read"`
 	Msg       []byte `bson:"msg"`
+	SrcIp     int32  `bson:"src_ip"`
+	SrcPort   uint16 `bson:"src_port"`
 }
