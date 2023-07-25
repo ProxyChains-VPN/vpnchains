@@ -293,6 +293,9 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
             perror("Failed to open udp socket");
             return -1;
         }
+        int flags = fcntl(s, F_GETFL, 0);
+        fcntl(ipc_sock_fd, F_SETFL, flags);
+
         struct sockaddr_in name;
         memset(&name, 0, sizeof(struct sockaddr_in));
         name.sin_family = AF_INET;
@@ -369,6 +372,9 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
             perror("Failed to open udp socket");
             return -1;
         }
+        int flags = fcntl(s, F_GETFL, 0);
+        fcntl(ipc_sock_fd, F_SETFL, flags);
+        
         struct sockaddr_in name;
         memset(&name, 0, sizeof(struct sockaddr_in));
         name.sin_family = AF_INET;
