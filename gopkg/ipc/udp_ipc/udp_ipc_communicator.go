@@ -15,7 +15,7 @@ type UdpIpcConnection struct {
 }
 
 // UdpIpcCommunicator An interface that represents an IPC communicator.
-// Read(handler func(conn *net.UDPConn)) - reads from the local socket.
+// ReadLoop - a function that listens to the local socket.
 type UdpIpcCommunicator interface {
 	ReadLoop(handler func(srcAddr *net.UDPAddr, buf []byte)) error
 }
@@ -42,7 +42,7 @@ func NewConnectionFromIpPort(ip net.IP, port int, bufSize int) UdpIpcCommunicato
 	}
 }
 
-// Read listens to the local socket.
+// ReadLoop reads from the local socket.
 // handler - a function that handles the connection.
 func (ipcConnection *UdpIpcConnection) ReadLoop(handler func(*net.UDPAddr, []byte)) error {
 	socket, err := net.ListenUDP("udp", ipcConnection.addr)
