@@ -1,55 +1,62 @@
 package tcp_ipc
 
 import (
+	"bytes"
 	"log"
 	"net"
 )
 
 // UdpIpcConnection A struct that represents an IPC connection.
-// Addr - a net.TCPAddr instance.
+// addr - a net.TCPAddr instance.
 type UdpIpcConnection struct {
-	Addr *net.UDPAddr
+	addr    *net.UDPAddr
+	bufSize int
 }
 
 // UdpIpcCommunicator An interface that represents an IPC communicator.
-// New() - creates a new UdpIpcConnection instance.
-// Listen(handler func(conn net.Conn)) - listens to the local socket.
+// Read(handler func(conn *net.UDPConn)) - reads from the local socket.
 type UdpIpcCommunicator interface {
-	New() *UdpIpcConnection
-	Listen(handler func(conn net.Conn)) error
+	Read(handler func(srcAddr *net.UDPAddr, buf []byte)) error
 }
 
 // NewConnection creates a new UdpIpcConnection instance.
-// socketPath - path to the socket file.
-func NewConnection(udpAddr *net.UDPAddr) *UdpIpcConnection {
-	return &UdpIpcConnection{Addr: udpAddr}
+// udpAddr - a net.UDPAddr instance.
+// bufSize - buffer size.
+func NewConnection(udpAddr *net.UDPAddr, bufSize int) UdpIpcCommunicator {
+	return &UdpIpcConnection{addr: udpAddr, bufSize: bufSize}
 }
 
 // NewConnectionFromIpPort creates a new UdpIpcConnection instance.
-// socketPath - path to the socket file.
-func NewConnectionFromIpPort(ip net.IP, port int) *UdpIpcConnection {
-	return &UdpIpcConnection{Addr: &net.UDPAddr{
-		IP:   ip,
-		Port: port,
-		Zone: "",
-	}}
+// ip - ip address.
+// port - port.
+// bufSize - buffer size.
+func NewConnectionFromIpPort(ip net.IP, port int, bufSize int) UdpIpcCommunicator {
+	return &UdpIpcConnection{
+		addr: &net.UDPAddr{
+			IP:   ip,
+			Port: port,
+			Zone: "",
+		},
+		bufSize: bufSize,
+	}
 }
 
-// Listen listens to the local socket.
+// Read listens to the local socket.
 // handler - a function that handles the connection.
-func (ipcConnection *UdpIpcConnection) Listen(handler func(conn *net.UDPConn)) error {
-	socket, err := net.ListenUDP("udp", ipcConnection.Addr)
+func (ipcConnection *UdpIpcConnection) Read(handler func(*net.UDPAddr, []byte)) error {
+	socket, err := net.ListenUDP("udp", ipcConnection.addr)
 	if err != nil {
 		return err
 	}
 
+	buf := make([]byte, ipcConnection.bufSize)
 	for {
-		conn, err := socket.AcceptTCP()
+		n, srcAddr, err := socket.ReadFromUDP(buf)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 
-		go handler(conn)
+		go handler(srcAddr, bytes.Clone(buf[:n]))
 	}
 }

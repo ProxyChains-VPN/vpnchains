@@ -27,7 +27,7 @@ func UnixIpPortToTCPAddr(unixIp uint32, port uint16) *net.TCPAddr {
 
 // ConnectRequestFromBytes A RequestHandler method that parses a bytearray and returns ConnectRequest instance,
 // or an error if the bytearray is not a bson representation of ConnectRequest.
-func (handler *RequestHandler) ConnectRequestFromBytes(requestBytes []byte) (*ConnectRequest, error) {
+func ConnectRequestFromBytes(requestBytes []byte) (*ConnectRequest, error) {
 	var connectRequest ConnectRequest
 	err := bson.Unmarshal(requestBytes, &connectRequest)
 	if err != nil {
@@ -37,6 +37,6 @@ func (handler *RequestHandler) ConnectRequestFromBytes(requestBytes []byte) (*Co
 }
 
 // ConnectResponseToBytes A RequestHandler method that serializes ConnectResponse instance to a bytearray.
-func (handler *RequestHandler) ConnectResponseToBytes(response ConnectResponse) ([]byte, error) {
+func ConnectResponseToBytes(response ConnectResponse) ([]byte, error) {
 	return bson.Marshal(response)
 }

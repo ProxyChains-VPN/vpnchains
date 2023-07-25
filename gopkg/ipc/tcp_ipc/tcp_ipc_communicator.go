@@ -6,9 +6,9 @@ import (
 )
 
 // TcpIpcConnection A struct that represents an IPC connection.
-// Addr - a net.TCPAddr instance.
+// addr - a net.TCPAddr instance.
 type TcpIpcConnection struct {
-	Addr *net.TCPAddr
+	addr *net.TCPAddr
 }
 
 // TcpIpcCommunicator An interface that represents an IPC communicator.
@@ -18,15 +18,16 @@ type TcpIpcCommunicator interface {
 }
 
 // NewConnection creates a new TcpIpcConnection instance.
-// socketPath - path to the socket file.
+// tcpAddr - a net.TCPAddr instance.
 func NewConnection(tcpAddr *net.TCPAddr) TcpIpcCommunicator {
-	return &TcpIpcConnection{Addr: tcpAddr}
+	return &TcpIpcConnection{addr: tcpAddr}
 }
 
 // NewConnectionFromIpPort creates a new TcpIpcConnection instance.
-// socketPath - path to the socket file.
+// ip - ip address.
+// port - port.
 func NewConnectionFromIpPort(ip net.IP, port int) TcpIpcCommunicator {
-	return &TcpIpcConnection{Addr: &net.TCPAddr{
+	return &TcpIpcConnection{addr: &net.TCPAddr{
 		IP:   ip,
 		Port: port,
 		Zone: "",
@@ -36,7 +37,7 @@ func NewConnectionFromIpPort(ip net.IP, port int) TcpIpcCommunicator {
 // Listen listens to the local socket.
 // handler - a function that handles the connection.
 func (ipcConnection *TcpIpcConnection) Listen(handler func(conn *net.TCPConn)) error {
-	socket, err := net.ListenTCP("tcp", ipcConnection.Addr)
+	socket, err := net.ListenTCP("tcp", ipcConnection.addr)
 	if err != nil {
 		return err
 	}
