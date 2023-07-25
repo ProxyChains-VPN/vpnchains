@@ -115,7 +115,12 @@ bool is_localhost(const struct sockaddr *addr){
     if (addr->sa_family == AF_INET) {
         struct sockaddr_in* sin = (struct sockaddr_in*)addr;
         unsigned int ip = sin->sin_addr.s_addr;
-        return ip == 0 || ip == 0x0100007f;
+//        return ip == 0 || ip == 0x0100007f;
+        if (ip == 0) {
+            return true;
+        } else {
+        return false;
+        }
     }
 
     if (addr->sa_family == AF_INET6) {
@@ -283,10 +288,28 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 }
 
 SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
-    if (is_internet_socket(s) && (socket_type(s) & SOCK_DGRAM) && (to == NULL || !is_localhost(to))) {
-//        fprintf(stderr, "ыутвещ not local");
-//        errno = ECONNREFUSED;
-//        return -1;
+    if (socket_type(s) == AF_INET6) {
+        errno = EAFNOSUPPORT;
+        return -1;
+    }
+
+    else if (socket_type(s) == AF_UNIX) {
+        return real_sendto(s, msg, len, flags, to, tolen);
+    }
+
+    else if (socket_type(s) & SOCK_DGRAM && (to == NULL || !is_localhost(to))) {
+        if (to == NULL) {
+            fprintf(stderr, "sendto: to is NULL\n");
+            fprintf(stderr, "ыутвещ not local");
+            errno = ECONNREFUSED;
+            return -1;
+        }
+
+        if (is_localhost(to)) {
+            fprintf(stderr, "sendto: to is localhost\n");
+            errno = ECONNREFUSED;
+            return -1;
+        }
 
         int ipc_sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
         if (ipc_sock_fd == -1) {
@@ -309,13 +332,17 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
         BSON_APPEND_UTF8(&bson_request, "call", "sendto");
         BSON_APPEND_BINARY(&bson_request, "msg", BSON_SUBTYPE_BINARY, msg, len);
         BSON_APPEND_INT64(&bson_request, "msg_len", len);
-        if(to != NULL){
-            struct sockaddr_in* sin = (struct sockaddr_in*)to;
-            BSON_APPEND_INT32(&bson_request, "dest_ip", sin->sin_addr.s_addr);
-            BSON_APPEND_INT32(&bson_request, "dest_port", ntohs(sin->sin_port));
-        }
+
+        struct sockaddr_in* sin = (struct sockaddr_in*)to;
+        BSON_APPEND_INT32(&bson_request, "dest_ip", sin->sin_addr.s_addr);
+        BSON_APPEND_INT32(&bson_request, "dest_port", ntohs(sin->sin_port));
         BSON_APPEND_INT64(&bson_request, "pid", getpid());
         BSON_APPEND_INT32(&bson_request, "fd", s);
+
+        if (sin->sin_addr.s_addr == 0) { // todo потом норм отфильтровать
+            fprintf(stderr, "sendto: dest_ip is 0\n");
+            return real_sendto(s, msg, len, flags, to, tolen);
+        }
 
         real_sendto(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len, 0, (const struct sockaddr*)&name, sizeof(name));
 
@@ -323,8 +350,10 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
         
         return len;
     }
-    
-    return real_sendto(s, msg, len, flags, to, tolen);
+
+    else {
+        return real_sendto(s, msg, len, flags, to, tolen);
+    }
 }
 
 SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
