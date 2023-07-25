@@ -1,12 +1,12 @@
-package ipc_request
+package tcp_ipc_request
 
 // ConnectRequest A wrapper struct for
 // int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 // syscall arguments.
 type ConnectRequest struct {
 	SockFd int32  `bson:"sock_fd"`
-	Port   uint16 `bson:"port"`
 	Ip     int32  `bson:"ip"`
+	Port   uint16 `bson:"port"`
 }
 
 // ConnectResponse A wrapper struct for

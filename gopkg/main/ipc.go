@@ -4,11 +4,12 @@ import (
 	"log"
 	"net"
 	"vpnchains/gopkg/ipc"
-	"vpnchains/gopkg/ipc/ipc_request"
+	"vpnchains/gopkg/ipc/tcp_ipc"
+	"vpnchains/gopkg/ipc/tcp_ipc/tcp_ipc_request"
 	"vpnchains/gopkg/vpn"
 )
 
-func handleIpcMessage(sockConn *net.TCPConn, requestHandler *ipc_request.RequestHandler, buf []byte, bufSize int, tunnel vpn.Tunnel) {
+func handleIpcMessage(sockConn *net.TCPConn, buf []byte, bufSize int, tunnel vpn.TcpTunnel) {
 	n, err := sockConn.Read(buf)
 	requestBuf := buf[:n]
 
@@ -16,22 +17,22 @@ func handleIpcMessage(sockConn *net.TCPConn, requestHandler *ipc_request.Request
 		log.Fatalln(err)
 	}
 
-	requestType, err := requestHandler.GetRequestType(requestBuf)
+	requestType, err := ipc.GetRequestType(requestBuf)
 
 	switch requestType {
 	case "connect":
-		request, err := requestHandler.ConnectRequestFromBytes(requestBuf)
+		request, err := tcp_ipc_request.ConnectRequestFromBytes(requestBuf)
 		if err != nil {
 			log.Println("eRROR PARSING", err)
 			return
 		}
 
-		sa := ipc_request.UnixIpPortToTCPAddr(uint32(request.Ip), request.Port)
+		sa := tcp_ipc_request.UnixIpPortToTCPAddr(uint32(request.Ip), request.Port)
 		log.Println("connect to sa", sa.IP, sa.Port)
 		endpointConn, err := tunnel.Connect(sa)
 		if err != nil {
 			log.Println("ERROR CONNECTING", err)
-			bytes, _ := requestHandler.ConnectResponseToBytes(ipc_request.ErrorConnectResponse)
+			bytes, _ := tcp_ipc_request.ConnectResponseToBytes(tcp_ipc_request.ErrorConnectResponse)
 			sockConn.Write(bytes)
 			return
 		}
@@ -84,7 +85,7 @@ func handleIpcMessage(sockConn *net.TCPConn, requestHandler *ipc_request.Request
 			}
 		}()
 
-		bytes, _ := requestHandler.ConnectResponseToBytes(ipc_request.SuccConnectResponse)
+		bytes, _ := tcp_ipc_request.ConnectResponseToBytes(tcp_ipc_request.SuccConnectResponse)
 		n, err = sockConn.Write(bytes)
 		if err != nil {
 			log.Println(err)
@@ -97,16 +98,15 @@ func handleIpcMessage(sockConn *net.TCPConn, requestHandler *ipc_request.Request
 	}
 }
 
-func startIpcWithSubprocess(ready chan struct{}, tunnel vpn.Tunnel, port int, bufSize int) {
+func startIpcWithSubprocess(ready chan struct{}, tunnel vpn.TcpTunnel, port int, bufSize int) {
 	var buf = make([]byte, bufSize)
 
-	conn := ipc.NewConnectionFromIpPort(net.IPv4(127, 0, 0, 1), port)
-	requestHandler := ipc_request.NewRequestHandler() // todo rename???
+	conn := tcp_ipc.NewConnectionFromIpPort(net.IPv4(127, 0, 0, 1), port)
 
 	ready <- struct{}{}
 	err := conn.Listen(
 		func(sockConn *net.TCPConn) {
-			handleIpcMessage(sockConn, requestHandler, buf, bufSize, tunnel)
+			handleIpcMessage(sockConn, buf, bufSize, tunnel)
 		},
 	)
 	if err != nil {

@@ -5,9 +5,9 @@ import (
 	"net"
 )
 
-// Tunnel An interface that represents a VPN tunnel.
+// TcpTunnel An interface that represents a VPN tunnel.
 // Connect(addr *net.TCPAddr) - connects to the specified address.
 // Is used when intercepting connect() syscalls.
-type Tunnel interface {
+type TcpTunnel interface {
 	Connect(addr *net.TCPAddr) (*gonet.TCPConn, error)
 }

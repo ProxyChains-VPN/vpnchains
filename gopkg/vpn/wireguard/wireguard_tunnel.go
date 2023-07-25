@@ -7,9 +7,10 @@ import (
 	"net/netip"
 )
 
+// WireguardTunnel An interface that represents a VPN tunnel.
 type WireguardTunnel struct {
-	Dev *device.Device // TODO а оно пригодится???
-	Net *netstack.Net
+	dev *device.Device // TODO а оно пригодится???
+	net *netstack.Net
 } // TODO инкапсулировать инкапсулируемое
 
 // NewTunnel creates a new tunnel.
@@ -34,8 +35,8 @@ func NewTunnel(localAddresses, dnsAddresses []netip.Addr, mtu int, uapiConfig st
 	}
 
 	tunnel := &WireguardTunnel{
-		Dev: dev,
-		Net: tnet,
+		dev: dev,
+		net: tnet,
 	}
 
 	return tunnel, nil
@@ -65,5 +66,5 @@ func TunnelFromConfig(config *WireguardConfig, mtu int) (*WireguardTunnel, error
 
 // CloseTunnel closes the tunnel.
 func (tunnel *WireguardTunnel) CloseTunnel() {
-	tunnel.Dev.Close()
+	tunnel.dev.Close()
 }
