@@ -320,50 +320,8 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
         real_sendto(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len, 0, (const struct sockaddr*)&name, sizeof(name));
 
         bson_destroy(&bson_request);
-
-	uint8_t *buf = (uint8_t*)malloc(100*sizeof(uint8_t));
-	socklen_t fromlen = sizeof(name);
-	if(-1 == real_recvfrom(ipc_sock_fd, (void*)buf, sizeof(buf), 0, (struct sockaddr*)&name, &fromlen)){
-	    if(EAGAIN == errno){
-		return -1;
-	    }
-	    perror("recvfrom() ipc socket failed:\n");
-	    return -1;
-	}
-        bson_reader_t* reader = bson_reader_new_from_data(buf, sizeof(buf));
-        const bson_t* bson_response = bson_reader_read(reader, NULL);
-        if (!is_valid(bson_response)){
-            return -1;
-        }
-
-        int res = -1;
-
-        bson_iter_t iter;
-        bson_iter_t bytes_written;
-        if (!bson_iter_init(&iter, bson_response)){
-            perror("Failed to parse bson: bson_iter_init");
-            return -1;
-        }
-
-        if (!bson_iter_find_descendant(&iter, "bytes_written", &bytes_written)){
-            perror("Failed to parse bson: can't find 'bytes_written'");
-            return -1;
-        }
-
-        if (!BSON_ITER_HOLDS_INT64(&bytes_written)){
-            perror("Failed to parse bson: 'bytes_written' is not int64");
-            return -1;
-        }
-
-        res = bson_iter_int64(&bytes_written);
-
-        bson_reader_destroy(reader);
-
-     if (-1 == close(ipc_sock_fd)){
-            perror("Close() ipc socket failed");
-            return -1;
-        }
-	return res;
+        
+        return len;
     }
     
     return real_sendto(s, msg, len, flags, to, tolen);
