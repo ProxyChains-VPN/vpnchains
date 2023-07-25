@@ -10,7 +10,7 @@ type SendtoRequest struct {
 	Msg      []byte `bson:"msg"`
 	MsgLen   uint64 `bson:"msg_len"`
 	DestIp   int32  `bson:"dest_ip"`
-	DestPort int16  `bson:"dest_port"`
+	DestPort uint16 `bson:"dest_port"`
 	Pid      int64  `bson:"pid"`
 	Fd       int32  `bson:"fd"`
 }
@@ -26,7 +26,7 @@ type RecvfromRequest struct {
 	Fd      int32  `bson:"fd"`
 	MsgLen  uint64 `bson:"msg_len"`
 	SrcIp   int32  `bson:"src_ip"`
-	SrcPort int16  `bson:"src_port"`
+	SrcPort uint16 `bson:"src_port"`
 }
 
 // RecvfromResponse A wrapper struct for
