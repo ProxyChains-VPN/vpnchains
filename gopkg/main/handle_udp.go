@@ -13,7 +13,13 @@ type packetOwner struct {
 	fd  int32
 }
 
-var packets map[packetOwner][]byte = make(map[packetOwner][]byte)
+type packet struct {
+	bytes []byte
+	ip    int32
+	port  uint16
+}
+
+var packets map[packetOwner]packet = make(map[packetOwner]packet)
 
 func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize int, tunnel vpn.UdpTunnel) {
 	requestType, err := ipc.GetRequestType(requestPacket)
@@ -30,18 +36,20 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 			return
 		}
 
-		sa := udp_ipc_request.UnixIpPortToUDPAddr(uint32(request.SrcIp), uint16(request.SrcPort))
-		log.Println("recvfrom sa", sa.IP, sa.Port)
+		log.Println("recvfrom request", "pid/fd", request.Fd, request.Pid)
 
-		packet := packets[packetOwner{request.Pid, request.Fd}]
 		var response udp_ipc_request.RecvfromResponse
-		if packet == nil {
+
+		packet, ok := packets[packetOwner{request.Pid, request.Fd}]
+		if !ok {
 			log.Println("no packet for fd", request.Fd)
 			response = udp_ipc_request.ErrorRecvfromResponse
 		} else {
 			response = udp_ipc_request.RecvfromResponse{
-				BytesRead: int64(len(packet)),
-				Msg:       packet,
+				BytesRead: int64(len(packet.bytes)),
+				Msg:       packet.bytes,
+				SrcIp:     packet.ip,
+				SrcPort:   packet.port,
 			}
 		}
 
@@ -71,7 +79,7 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 		}
 
 		sa := udp_ipc_request.UnixIpPortToUDPAddr(uint32(request.DestIp), uint16(request.DestPort))
-		log.Println("sendto sa", sa.IP, sa.Port)
+		log.Println("sendto sa", sa.IP, sa.Port, "pid/fd", request.Pid, request.Fd)
 
 		conn, err := tunnel.Dial(sa)
 		if err != nil {
@@ -91,7 +99,13 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 			return
 		}
 
-		packets[packetOwner{request.Pid, request.Fd}] = buf[:n]
+		recvPacket := packet{
+			bytes: buf[:n],
+			ip:    request.DestIp,
+			port:  request.DestPort,
+		}
+
+		packets[packetOwner{request.Pid, request.Fd}] = recvPacket
 	default:
 		log.Println("unknown request type:", requestType)
 		return
