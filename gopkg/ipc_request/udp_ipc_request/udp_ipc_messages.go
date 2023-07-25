@@ -15,16 +15,6 @@ type SendtoRequest struct {
 	Fd       int32  `bson:"fd"`
 }
 
-// SendtoResponse A wrapper struct for
-// ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
-//
-//	const struct sockaddr *dest_addr, socklen_t addrlen);
-//
-// syscall return value and errno (TODO).
-type SendtoResponse struct {
-	BytesWritten int64 `bson:"bytes_written"`
-}
-
 // RecvfromRequest A wrapper struct for
 // ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags,
 //

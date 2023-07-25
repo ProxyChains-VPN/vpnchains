@@ -5,6 +5,13 @@ import (
 	"net"
 )
 
+// ErrorRecvfromResponse A response that is sent to caller process if the sendto syscall was unsuccessful
+// (if there were no packet recieved from tunnel side).
+var ErrorRecvfromResponse = RecvfromResponse{
+	BytesRead: -1,
+	Msg:       nil,
+}
+
 // UnixIpPortToUDPAddr A function that converts POSIX-style IP address (that is an unsigned 64-bit value)
 // and port (that is an unsigned 16-bit value) to a net.UDPAddr instance.
 // unixIp - POSIX-style IP address.
@@ -45,10 +52,4 @@ func SendtoRequestFromBytes(requestBytes []byte) (*SendtoRequest, error) {
 		return nil, err
 	}
 	return &sendtoRequest, nil
-}
-
-// SendtoResponseToBytes A function that serializes SendtoResponse instance to a bytearray.
-// response - SendtoResponse instance to serialize.
-func SendtoResponseToBytes(response SendtoResponse) ([]byte, error) {
-	return bson.Marshal(response)
 }
