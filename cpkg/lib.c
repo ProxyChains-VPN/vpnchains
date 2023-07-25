@@ -374,7 +374,7 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
         }
         int flags = fcntl(s, F_GETFL, 0);
         fcntl(ipc_sock_fd, F_SETFL, flags);
-        
+
         struct sockaddr_in name;
         memset(&name, 0, sizeof(struct sockaddr_in));
         name.sin_family = AF_INET;
@@ -388,6 +388,7 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
         BSON_APPEND_UTF8(&bson_request, "call", "recvfrom");
         BSON_APPEND_INT64(&bson_request, "pid", getpid());
         BSON_APPEND_INT32(&bson_request, "fd", s);
+        BSON_APPEND_INT64(&bson_request, "msg_len", len);
         if(from != NULL){
             struct sockaddr_in* sin = (struct sockaddr_in*)from;
             BSON_APPEND_INT32(&bson_request, "src_ip", sin->sin_addr.s_addr);
