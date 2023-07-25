@@ -405,58 +405,67 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
         real_sendto(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len, 0, (const struct sockaddr*)&name, sizeof(name));
 
         bson_destroy(&bson_request);
+        
+	uint8_t *buf = (uint8_t*)malloc(1000*sizeof(uint8_t));
+        socklen_t buflen = sizeof(name);
+	if(-1 == real_recvfrom(ipc_sock_fd, (void*)buf, sizeof(buf), 0, (struct sockaddr*)&name, &buflen)){
+    	    if(EAGAIN == errno){
+		return -1;
+    	    }
+    	    perror("recvfrom() ipc socket failed:\n");
+    	    return -1;
+	}
+        bson_reader_t* reader = bson_reader_new_from_data(buf, sizeof(buf));
 
+        const bson_t* bson_response = bson_reader_read(reader, NULL);
+        if (!is_valid(bson_response)){
+            return -1;
+        }
 
-//        bson_reader_t* reader = bson_reader_new_from_fd(ipc_sock_fd, false);
-//        const bson_t* bson_response = bson_reader_read(reader, NULL);
-//        if (!is_valid(bson_response)){
-//            return -1;
-//        }
-//
-//        int res = -1;
-//
-//        bson_iter_t iter;
-//        bson_iter_t bson_bytes_read;
-//        bson_iter_t bson_msg;
-//        int bytes_read;
-//        void *binary_data;
-//        if (!bson_iter_init(&iter, bson_response)){
-//            perror("Failed to parse bson: bson_iter_init");
-//            return -1;
-//        }
-//
-//        if (!bson_iter_find_descendant(&iter, "bytes_read", &bson_bytes_read)){
-//            perror("Failed to parse bson: can't find 'bytes_read'");
-//            return -1;
-//        }
-//
-//        if (!bson_iter_find_descendant(&iter, "msg", &bson_msg)){
-//            perror("Failed to parse bson: can't find 'msg'");
-//            return -1;
-//        }
-//
-//        if (!BSON_ITER_HOLDS_INT64(&bson_bytes_read)){
-//            perror("Failed to parse bson: 'bytes_read' is not int64");
-//            return -1;
-//        }
-//
-//        if (!BSON_ITER_HOLDS_BINARY(&bson_msg)){
-//            perror("Failed to parse bson: 'msg' is not binary");
-//            return -1;
-//        }
-//
-//        bytes_read = bson_iter_int64(&bson_bytes_read);
-//        bson_iter_binary(&bson_msg, BSON_SUBTYPE_BINARY, &bytes_read, (const uint8_t**)&binary_data);
-//        memcpy(buf, binary_data, bytes_read);
-//
-//        bson_reader_destroy(reader);
-//
-//        if (-1 == close(ipc_sock_fd)){
-//            perror("Close() ipc socket failed");
-//            return -1;
-//        }
-//
-//        return bytes_read;
+        int res = -1;
+
+        bson_iter_t iter;
+        bson_iter_t bson_bytes_read;
+        bson_iter_t bson_msg;
+        int bytes_read;
+        void *binary_data;
+        if (!bson_iter_init(&iter, bson_response)){
+            perror("Failed to parse bson: bson_iter_init");
+            return -1;
+        }
+
+        if (!bson_iter_find_descendant(&iter, "bytes_read", &bson_bytes_read)){
+            perror("Failed to parse bson: can't find 'bytes_read'");
+            return -1;
+        }
+
+        if (!bson_iter_find_descendant(&iter, "msg", &bson_msg)){
+            perror("Failed to parse bson: can't find 'msg'");
+            return -1;
+        }
+
+        if (!BSON_ITER_HOLDS_INT64(&bson_bytes_read)){
+            perror("Failed to parse bson: 'bytes_read' is not int64");
+            return -1;
+        }
+
+        if (!BSON_ITER_HOLDS_BINARY(&bson_msg)){
+             perror("Failed to parse bson: 'msg' is not binary");
+            return -1;
+        }
+
+        bytes_read = bson_iter_int64(&bson_bytes_read);
+        bson_iter_binary(&bson_msg, BSON_SUBTYPE_BINARY, &bytes_read, (const uint8_t**)&binary_data);
+        memcpy(buf, binary_data, bytes_read);
+
+        bson_reader_destroy(reader);
+
+        if (-1 == close(ipc_sock_fd)){
+            perror("Close() ipc socket failed");
+            return -1;
+        }
+
+        return bytes_read;
     }
 
     return real_recvfrom(s, buf, len, flags, from, fromlen);
