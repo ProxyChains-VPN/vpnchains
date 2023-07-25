@@ -2,6 +2,7 @@ package udp_ipc
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"net"
 )
@@ -46,17 +47,23 @@ func NewConnectionFromIpPort(ip net.IP, port int, bufSize int) UdpIpcCommunicato
 func (ipcConnection *UdpIpcConnection) ReadLoop(handler func(*net.UDPAddr, []byte)) error {
 	socket, err := net.ListenUDP("udp", ipcConnection.addr)
 	if err != nil {
+		log.Println(err, "line 50 udp ipc communicator")
 		return err
 	}
 
-	buf := make([]byte, ipcConnection.bufSize)
-	for {
-		n, srcAddr, err := socket.ReadFromUDP(buf)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
+	go func() {
+		buf := make([]byte, ipcConnection.bufSize)
+		for {
+			fmt.Println("read loop")
+			n, srcAddr, err := socket.ReadFromUDP(buf)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
 
-		go handler(srcAddr, bytes.Clone(buf[:n]))
-	}
+			go handler(srcAddr, bytes.Clone(buf[:n]))
+		}
+	}()
+
+	return nil
 }

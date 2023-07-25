@@ -42,13 +42,17 @@ func (ipcConnection *TcpIpcConnection) Listen(handler func(conn *net.TCPConn)) e
 		return err
 	}
 
-	for {
-		conn, err := socket.AcceptTCP()
-		if err != nil {
-			log.Println(err)
-			continue
-		}
+	go func() {
+		for {
+			conn, err := socket.AcceptTCP()
+			if err != nil {
+				log.Println(err)
+				continue
+			}
 
-		go handler(conn)
-	}
+			go handler(conn)
+		}
+	}()
+
+	return nil
 }

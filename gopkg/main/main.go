@@ -115,19 +115,12 @@ func main() {
 	cmd := ipc.CreateCommandWithInjectedLibrary(*injectedLibPath, commandPath, commandArgs)
 
 	ready := make(chan struct{})
-	go startIpcWithSubprocess(ready, tunnel, *ipcServerPort, *bufSize)
+	go startIpcWithSubprocess(ready, tunnel, tunnel, *ipcServerPort, *bufSize)
 
 	<-ready
 	err = cmd.Run()
 	if err != nil {
 		log.Fatalln("subprocess says,", err)
-		os.Exit(1)
-	}
-
-	tunnel.CloseTunnel()
-
-	if err != nil {
-		log.Println(err)
 		os.Exit(1)
 	}
 }

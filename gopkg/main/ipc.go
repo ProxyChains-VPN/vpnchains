@@ -7,10 +7,11 @@ import (
 	"vpnchains/gopkg/ipc/tcp_ipc"
 	"vpnchains/gopkg/ipc/udp_ipc"
 	"vpnchains/gopkg/ipc_request/tcp_ipc_request"
+	"vpnchains/gopkg/ipc_request/udp_ipc_request"
 	"vpnchains/gopkg/vpn"
 )
 
-func handleUdpIpcMessage(sockConn *net.UDPConn, requestPacket []byte, bufSize int, tunnel vpn.UdpTunnel) {
+func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize int, tunnel vpn.UdpTunnel) {
 	requestType, err := ipc.GetRequestType(requestPacket)
 	if err != nil {
 		log.Println("ERROR PARSING", err)
@@ -19,6 +20,26 @@ func handleUdpIpcMessage(sockConn *net.UDPConn, requestPacket []byte, bufSize in
 
 	switch requestType {
 	case "recvfrom":
+		request, err := udp_ipc_request.RecvfromRequestFromBytes(requestPacket)
+		if err != nil {
+			log.Println("ERROR PARSING", err)
+			return
+		}
+
+		sa := udp_ipc_request.UnixIpPortToUDPAddr(uint32(request.SrcIp), uint16(request.SrcPort))
+		log.Println("recvfrom sa", sa.IP, sa.Port)
+	case "sendto":
+		request, err := udp_ipc_request.SendtoRequestFromBytes(requestPacket)
+		if err != nil {
+			log.Println("ERROR PARSING", err)
+			return
+		}
+
+		sa := udp_ipc_request.UnixIpPortToUDPAddr(uint32(request.DestIp), uint16(request.DestPort))
+		log.Println("sendto sa", sa.IP, sa.Port)
+	default:
+		log.Println("UNKNOWN REQUEST TYPE", requestType)
+		return
 	}
 }
 
@@ -116,14 +137,14 @@ func handleTcpIpcMessage(sockConn *net.TCPConn, bufSize int, tunnel vpn.TcpTunne
 	}
 }
 
-func startIpcWithSubprocess(ready chan struct{}, tunnel vpn.TcpTunnel, port int, bufSize int) {
+func startIpcWithSubprocess(ready chan struct{}, tcpTunnel vpn.TcpTunnel, udpTunnel vpn.UdpTunnel, port int, bufSize int) {
 	tcpConn := tcp_ipc.NewConnectionFromIpPort(net.IPv4(127, 0, 0, 1), port)
 	udpConn := udp_ipc.NewConnectionFromIpPort(net.IPv4(127, 0, 0, 1), port, bufSize)
 
 	ready <- struct{}{}
 	err := tcpConn.Listen(
 		func(sockConn *net.TCPConn) {
-			handleTcpIpcMessage(sockConn, bufSize, tunnel)
+			handleTcpIpcMessage(sockConn, bufSize, tcpTunnel)
 		},
 	)
 	if err != nil {
@@ -131,5 +152,15 @@ func startIpcWithSubprocess(ready chan struct{}, tunnel vpn.TcpTunnel, port int,
 		log.Fatalln(err)
 	}
 
-	err = udpConn.ReadLoop()
+	log.Println("start udp reading")
+	err = udpConn.ReadLoop(
+		func(sockAddr *net.UDPAddr, requestPacket []byte) {
+			handleUdpIpcMessage(sockAddr, requestPacket, bufSize, udpTunnel)
+		},
+	)
+
+	if err != nil {
+		log.Println("unable to start udp reading", err)
+		log.Fatalln(err)
+	}
 }
