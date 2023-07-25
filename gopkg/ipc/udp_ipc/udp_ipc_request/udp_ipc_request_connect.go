@@ -1,4 +1,4 @@
-package ipc_request
+package udp_ipc_request
 
 import (
 	"go.mongodb.org/mongo-driver/bson"
