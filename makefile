@@ -1,5 +1,5 @@
 GO_CC=go build
-C_CC=gcc
+C_CC=g++
 
 ifeq ($(VPNCHAINS_LIB_NAME),)
 VPNCHAINS_LIB_NAME := vpnchains_inject.so
@@ -20,6 +20,6 @@ pre:
 app: pre
 	$(GO_CC) -o $(VPNCHAINS_OUTPUT_DIR)/$(VPNCHAINS_EXECUTABLE_NAME) gopkg/main/*.go
 lib: pre
-	$(C_CC) -shared -fPIC -fvisibility=hidden -o $(VPNCHAINS_OUTPUT_DIR)/$(VPNCHAINS_LIB_NAME) cpkg/lib.c -lbson-1.0
+	$(C_CC) -shared -fPIC -fvisibility=hidden -o $(VPNCHAINS_OUTPUT_DIR)/$(VPNCHAINS_LIB_NAME) cpkg/lib.cpp -lbson-1.0
 test: pre
 	$(C_CC) -o $(VPNCHAINS_OUTPUT_DIR)/test test/example.c
