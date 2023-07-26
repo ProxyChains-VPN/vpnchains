@@ -42,11 +42,20 @@ typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
 typedef ssize_t (*Sendto_callback)(int, const void*, size_t, int, const struct sockaddr*, socklen_t);
 typedef ssize_t (*Recvfrom_callback)(int, void*, size_t, int, struct sockaddr*, socklen_t*);
 typedef ssize_t (*Recvmsg_callback)(int, struct msghdr*, int);
+typedef ssize_t (*Sendmsg_callback)(int, const struct msghdr*, int);
 
 Connect_callback __real_connect = NULL;
 Sendto_callback __real_sendto = NULL;
 Recvfrom_callback __real_recvfrom = NULL;
 Recvmsg_callback __real_recvmsg = NULL;
+Sendmsg_callback __real_sendmsg = NULL;
+
+ssize_t real_sendmsg(int sockfd, const struct msghdr *msg, int flags){
+    if (__real_sendmsg == NULL) {
+        __real_sendmsg = (Sendmsg_callback)dlsym(RTLD_NEXT, "sendmsg");
+    }
+    return __real_sendmsg(sockfd, msg, flags);
+}
 
 int real_connect(int fd, const struct sockaddr* sa, socklen_t len) {
     if (__real_connect == NULL) {
@@ -172,7 +181,6 @@ bool is_valid(const bson_t* bson){
 /*
  * IPC utils.
  */
-
 int connect_local_socket(int fd) {
     static bool called = false;
     static struct sockaddr_in name;
@@ -338,6 +346,7 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
             return -1;
         }
 
+
         bson_t bson_request = BSON_INITIALIZER;
         BSON_APPEND_UTF8(&bson_request, "call", "sendto");
         BSON_APPEND_BINARY(&bson_request, "msg", BSON_SUBTYPE_BINARY, (const unsigned char*) msg, len);
@@ -350,6 +359,9 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
         BSON_APPEND_INT32(&bson_request, "fd", s);
 
         real_sendto(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len, 0, (const struct sockaddr*)&name, sizeof(name));
+
+        fprintf(stderr, "sendto: sent request\n");
+
 
         bson_destroy(&bson_request);
         
@@ -371,6 +383,20 @@ SO_EXPORT ssize_t recv(int s, void *buf, size_t len, int flags) {
     return recvfrom(s, buf, len, flags, NULL, NULL);
 }
 
+SO_EXPORT ssize_t write(int fd, const void *buf, size_t count) {
+    return send(fd, buf, count, 0);
+}
+
+SO_EXPORT ssize_t sendmsg(int s, const struct msghdr *msg, int flags) {
+    fprintf(stderr, "sendmsg\n");
+    if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM) && is_localhost((const sockaddr*) msg->msg_name)) {
+        return sendto(s, msg->msg_iov[0].iov_base, msg->msg_iov[0].iov_len, flags, (const sockaddr*) msg->msg_name, msg->msg_namelen);
+    }
+    else {
+        return real_sendmsg(s, msg, flags);
+    }
+}
+
 SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
     if (socket_sa_family(s) == AF_INET6) {
         fprintf(stderr, "recvfrom: AF_INET6 not supported\n");
@@ -385,8 +411,7 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
 
     if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM)) {
         fprintf(stderr, "IN SO recvfrom fd %d pid %d\n", s, getpid());
-        // errno = ECONNREFUSED;
-        // return -1;
+
         int ipc_sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
         if (ipc_sock_fd == -1) {
             perror("Failed to open udp socket");
@@ -410,19 +435,23 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
         BSON_APPEND_INT32(&bson_request, "fd", s);
         BSON_APPEND_INT64(&bson_request, "msg_len", len);
 
+        fprintf(stderr, "recvfrom: sent request\n");
+
         real_sendto(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len, 0, (const struct sockaddr*)&name, sizeof(name));
+
+        fprintf(stderr, "recvfrom: sent request\n");
 
         bson_destroy(&bson_request);
         
 	uint8_t *buf = (uint8_t*)malloc(len);
         socklen_t name_len = sizeof(name);
-	if(-1 == real_recvfrom(ipc_sock_fd, (void*)buf, len, 0, (struct sockaddr*)&name, &name_len)){
-    	    if(EAGAIN == errno){
-	        return -1;
-    	    }
-    	    perror("recvfrom() ipc socket failed:\n");
-    	    return -1;
-	}
+        if (-1 == real_recvfrom(ipc_sock_fd, (void*)buf, len, 0, (struct sockaddr*)&name, &name_len)){
+//            if (EAGAIN == errno) {
+//                return -1;
+//            }
+            perror("recvfrom() ipc socket failed:\n");
+            return -1;
+        }
         bson_reader_t* reader = bson_reader_new_from_data(buf, sizeof(buf));
 
         const bson_t* bson_response = bson_reader_read(reader, NULL);
