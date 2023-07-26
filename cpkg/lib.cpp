@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <map>
 
-//std::map<int, struct sockaddr_in> udp_connections;
+std::map<int, struct sockaddr_in> udp_connections;
 
 /*
  * Gets the IPC port from the environment variable VPNCHAINS_IPC_SERVER_PORT.
@@ -220,16 +220,12 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
         errno = EAFNOSUPPORT; // todo
         return -1;
     }
-    
+
     struct sockaddr_in *sin = (struct sockaddr_in*)addr;
 
     if (socket_type(sock_fd) & SOCK_DGRAM) {
-        /*
         udp_connections[sock_fd] = *sin;
         return 0;
-        */
-        errno = ECONNREFUSED;
-        return -1;
     }
 
     bson_t bson_request = BSON_INITIALIZER;
@@ -310,17 +306,19 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
     }
 
     else if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM) && (to == NULL || !is_localhost(to))) {
-        if (to == NULL){ //&& udp_connections.find(s) == udp_connections.end()) {
+        if (to == NULL && udp_connections.find(s) == udp_connections.end()) {
             fprintf(stderr, "sendto: to is NULL\n");
             fprintf(stderr, "ыутвещ not local");
             errno = ECONNREFUSED;
             return -1;
         }
 
-        if (is_localhost(to)) {
-            fprintf(stderr, "sendto: to is localhost\n");
-            errno = ECONNREFUSED;
-            return -1;
+        struct sockaddr_in* sin;
+        if (to == NULL) {
+            sin = &udp_connections[s];
+        }
+        else {
+            sin = (struct sockaddr_in*)to;
         }
 
         int ipc_sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -345,13 +343,6 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
         BSON_APPEND_BINARY(&bson_request, "msg", BSON_SUBTYPE_BINARY, (const unsigned char*) msg, len);
         BSON_APPEND_INT64(&bson_request, "msg_len", len);
 
-        struct sockaddr_in* sin;
-        //if(to == NULL){
-    	//    sin = &udp_connections[s];
-        //}
-        //else{
-    	    sin = (struct sockaddr_in*)to;
-        //}
         
         BSON_APPEND_INT32(&bson_request, "dest_ip", sin->sin_addr.s_addr);
         BSON_APPEND_INT32(&bson_request, "dest_port", ntohs(sin->sin_port));
@@ -368,6 +359,11 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
     else {
         return real_sendto(s, msg, len, flags, to, tolen);
     }
+}
+
+SO_EXPORT ssize_t send(int s, const void *msg, size_t len, int flags) {
+//    fprintf(stderr, "send");
+    return sendto(s, msg, len, flags, NULL, 0);
 }
 
 SO_EXPORT ssize_t recv(int s, void *buf, size_t len, int flags) {
