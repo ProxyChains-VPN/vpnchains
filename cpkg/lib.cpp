@@ -300,15 +300,7 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
 SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
     if (socket_sa_family(s) == AF_INET6 && !is_localhost(to)) {
-//        struct sockaddr_in6* sin6 = (struct sockaddr_in6*)to;
-//        unsigned short int* ip = sin6->sin6_addr.s6_addr;
-
         fprintf(stderr, "sendto: AF_INET6 not supported\n");
-//        for (int i = 0; i <= 8; i++) {
-//            fprintf(stderr, "%x:", ip[i]);
-//        }
-//        fprintf(stderr, " %u\n", ntohs(sin6->sin6_port));
-
         errno = EAFNOSUPPORT;
         return -1;
     }
@@ -317,7 +309,7 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
         return real_sendto(s, msg, len, flags, to, tolen);
     }
 
-    else if ((socket_type(s) & SOCK_DGRAM) && (to == NULL || !is_localhost(to))) {
+    else if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM) && (to == NULL || !is_localhost(to))) {
         if (to == NULL){ //&& udp_connections.find(s) == udp_connections.end()) {
             fprintf(stderr, "sendto: to is NULL\n");
             fprintf(stderr, "ыутвещ not local");
@@ -386,15 +378,14 @@ SO_EXPORT ssize_t recv(int s, void *buf, size_t len, int flags) {
 SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
     if (socket_sa_family(s) == AF_INET6) {
         fprintf(stderr, "recvfrom: AF_INET6 not supported\n");
-        errno = EAFNOSUPPORT;
-        return -1;
+//        errno = EAFNOSUPPORT;
+//        return -1;
+        return real_recvfrom(s, buf, len, flags, from, fromlen);
     }
 
     if (socket_sa_family(s) == AF_UNIX) {
         return real_recvfrom(s, buf, len, flags, from, fromlen);
     }
-
-//    fprintf(stderr, "recvfrom\n fd %d pid %d\n", s, getpid());
 
     if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM)) {
         fprintf(stderr, "IN SO recvfrom fd %d pid %d\n", s, getpid());
