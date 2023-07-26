@@ -39,10 +39,12 @@ int get_ipc_port(){
 typedef int (*Connect_callback)(int, const struct sockaddr*, socklen_t);
 typedef ssize_t (*Sendto_callback)(int, const void*, size_t, int, const struct sockaddr*, socklen_t);
 typedef ssize_t (*Recvfrom_callback)(int, void*, size_t, int, struct sockaddr*, socklen_t*);
+typedef ssize_t (*Recvmsg_callback)(int, struct msghdr*, int);
 
 Connect_callback __real_connect = NULL;
 Sendto_callback __real_sendto = NULL;
 Recvfrom_callback __real_recvfrom = NULL;
+Recvmsg_callback __real_recvmsg = NULL;
 
 int real_connect(int fd, const struct sockaddr* sa, socklen_t len) {
     if (__real_connect == NULL) {
@@ -63,6 +65,13 @@ ssize_t real_recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *
         __real_recvfrom = (Recvfrom_callback)dlsym(RTLD_NEXT, "recvfrom");
     }
     return __real_recvfrom(s, buf, len, flags, from, fromlen);
+}
+
+ssize_t real_recvmsg(int sockfd, struct msghdr *msg, int flags){
+    if (__real_recvmsg == NULL) {
+        __real_recvmsg = (Recvmsg_callback)dlsym(RTLD_NEXT, "recvmsg");
+    }
+    return __real_recvmsg(sockfd, msg, flags);
 }
 
 
@@ -115,12 +124,7 @@ bool is_localhost(const struct sockaddr *addr){
     if (addr->sa_family == AF_INET) {
         struct sockaddr_in* sin = (struct sockaddr_in*)addr;
         unsigned int ip = sin->sin_addr.s_addr;
-//        return ip == 0 || ip == 0x0100007f;
-        if (ip == 0) {
-            return true;
-        } else {
-        return false;
-        }
+        return ip == 0 || ip == 0x0100007f;
     }
 
     if (addr->sa_family == AF_INET6) {
@@ -141,23 +145,25 @@ bool is_localhost(const struct sockaddr *addr){
 
         return memcmp(ip, &result2, sizeof(struct in6_addr)) == 0;
     }
+
+    return false;
 }
 
 /*
  * Bson utils.
  */
 bool is_valid(const bson_t* bson){
-    if (!bson_validate(
-            bson,
-            BSON_VALIDATE_UTF8
-            | BSON_VALIDATE_DOLLAR_KEYS
-            | BSON_VALIDATE_DOT_KEYS
-            | BSON_VALIDATE_UTF8_ALLOW_NULL
-            | BSON_VALIDATE_EMPTY_KEYS,
-            NULL)) {
-        write(2, "Response bson is not valid\n", 27);
-        return false;
-    }
+//    if (!bson_validate(
+//            bson,
+//            BSON_VALIDATE_UTF8
+//            | BSON_VALIDATE_DOLLAR_KEYS
+//            | BSON_VALIDATE_DOT_KEYS
+//            | BSON_VALIDATE_UTF8_ALLOW_NULL
+//            | BSON_VALIDATE_EMPTY_KEYS,
+//            NULL)) {
+//        write(2, "Response bson is not valid\n", 27);
+//        return false;
+//    }
     return true;
 }
 
@@ -288,16 +294,25 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 }
 
 SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
-    if (socket_type(s) == AF_INET6) {
+    if (socket_sa_family(s) == AF_INET6 && !is_localhost(to)) {
+//        struct sockaddr_in6* sin6 = (struct sockaddr_in6*)to;
+//        unsigned short int* ip = sin6->sin6_addr.s6_addr;
+
+        fprintf(stderr, "sendto: AF_INET6 not supported\n");
+//        for (int i = 0; i <= 8; i++) {
+//            fprintf(stderr, "%x:", ip[i]);
+//        }
+//        fprintf(stderr, " %u\n", ntohs(sin6->sin6_port));
+
         errno = EAFNOSUPPORT;
         return -1;
     }
 
-    else if (socket_type(s) == AF_UNIX) {
+    else if (socket_sa_family(s) == AF_UNIX) {
         return real_sendto(s, msg, len, flags, to, tolen);
     }
 
-    else if (socket_type(s) & SOCK_DGRAM && (to == NULL || !is_localhost(to))) {
+    else if ((socket_type(s) & SOCK_DGRAM) && (to == NULL || !is_localhost(to))) {
         if (to == NULL) {
             fprintf(stderr, "sendto: to is NULL\n");
             fprintf(stderr, "ыутвещ not local");
@@ -330,7 +345,7 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
 
         bson_t bson_request = BSON_INITIALIZER;
         BSON_APPEND_UTF8(&bson_request, "call", "sendto");
-        BSON_APPEND_BINARY(&bson_request, "msg", BSON_SUBTYPE_BINARY, msg, len);
+        BSON_APPEND_BINARY(&bson_request, "msg", BSON_SUBTYPE_BINARY, (const unsigned char*) msg, len);
         BSON_APPEND_INT64(&bson_request, "msg_len", len);
 
         struct sockaddr_in* sin = (struct sockaddr_in*)to;
@@ -338,11 +353,6 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
         BSON_APPEND_INT32(&bson_request, "dest_port", ntohs(sin->sin_port));
         BSON_APPEND_INT64(&bson_request, "pid", getpid());
         BSON_APPEND_INT32(&bson_request, "fd", s);
-
-        if (sin->sin_addr.s_addr == 0) { // todo потом норм отфильтровать
-            fprintf(stderr, "sendto: dest_ip is 0\n");
-            return real_sendto(s, msg, len, flags, to, tolen);
-        }
 
         real_sendto(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len, 0, (const struct sockaddr*)&name, sizeof(name));
 
@@ -356,11 +366,28 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
     }
 }
 
+SO_EXPORT ssize_t recv(int s, void *buf, size_t len, int flags) {
+//    fprintf(stderr, "recv");
+    return recvfrom(s, buf, len, flags, NULL, NULL);
+}
+
 SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
-    if (is_internet_socket(s) && (socket_type(s) & SOCK_DGRAM) && (from == NULL || !is_localhost(from))) {
-        /*fprintf(stderr, "recv not local");
-        errno = ECONNREFUSED;
-        return -1;*/
+    if (socket_sa_family(s) == AF_INET6) {
+        fprintf(stderr, "recvfrom: AF_INET6 not supported\n");
+        errno = EAFNOSUPPORT;
+        return -1;
+    }
+
+    if (socket_sa_family(s) == AF_UNIX) {
+        return real_recvfrom(s, buf, len, flags, from, fromlen);
+    }
+
+//    fprintf(stderr, "recvfrom\n fd %d pid %d\n", s, getpid());
+
+    if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM)) {
+        fprintf(stderr, "IN SO recvfrom fd %d pid %d\n", s, getpid());
+        // errno = ECONNREFUSED;
+        // return -1;
         int ipc_sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
         if (ipc_sock_fd == -1) {
             perror("Failed to open udp socket");
@@ -395,8 +422,8 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
     	    if(EAGAIN == errno){
 		        return -1;
     	    }
-    	perror("recvfrom() ipc socket failed:\n");
-    	   return -1;
+    	    perror("recvfrom() ipc socket failed:\n");
+    	    return -1;
 	    }
         bson_reader_t* reader = bson_reader_new_from_data(buf, sizeof(buf));
 
@@ -462,12 +489,12 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
         }
 
         bytes_read = bson_iter_int64(&bson_bytes_read);
-        bson_iter_binary(&bson_msg, BSON_SUBTYPE_BINARY, &bytes_read, (const uint8_t**)&binary_data);
+        bson_iter_binary(&bson_msg, NULL, (unsigned int *) &bytes_read, (const uint8_t**)&binary_data);
         memcpy(buf, binary_data, bytes_read);
         src_ip = bson_iter_int32(&bson_src_ip);
         src_port = bson_iter_int32(&bson_src_port);
 
-        if(from != NULL){
+        if (from != NULL){
             struct sockaddr_in* from_in = (struct sockaddr_in*)from;
             from_in->sin_family = AF_INET;
             from_in->sin_addr.s_addr = src_ip;
@@ -486,4 +513,25 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
     }
 
     return real_recvfrom(s, buf, len, flags, from, fromlen);
+}
+
+SO_EXPORT ssize_t recvmsg(int s, struct msghdr *msg, int flags) { // todo
+//    if (socket_sa_family(s) != AF_INET6) {
+//        fprintf(stderr, "AF INET 6 UNSUPPORTED\n");
+//        errno = ECONNREFUSED;
+//        return -1;
+//    }
+
+    if (socket_sa_family(s) == AF_UNIX) {
+        return real_recvmsg(s, msg, flags);
+    }
+
+    if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM)) {
+        fprintf(stderr, "recvmsg\n fd %d pid %d\n", s, getpid());
+        return recvfrom(s, msg->msg_iov[0].iov_base, msg->msg_iov[0].iov_len, flags, NULL, NULL);
+    }
+
+    return real_recvmsg(s, msg, flags);
+//    fprintf(stderr, "recvmsg\n fd %d pid %d\n", sockfd, getpid());
+//    return recvfrom(sockfd, msg->msg_iov[0].iov_base, msg->msg_iov[0].iov_len, flags, NULL, NULL);
 }
