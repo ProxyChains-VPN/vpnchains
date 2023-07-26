@@ -13,7 +13,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <map>
 
+//std::map<int, struct sockaddr_in> udp_connections;
 
 /*
  * Gets the IPC port from the environment variable VPNCHAINS_IPC_SERVER_PORT.
@@ -153,20 +155,19 @@ bool is_localhost(const struct sockaddr *addr){
  * Bson utils.
  */
 bool is_valid(const bson_t* bson){
-//    if (!bson_validate(
-//            bson,
-//            BSON_VALIDATE_UTF8
-//            | BSON_VALIDATE_DOLLAR_KEYS
-//            | BSON_VALIDATE_DOT_KEYS
-//            | BSON_VALIDATE_UTF8_ALLOW_NULL
-//            | BSON_VALIDATE_EMPTY_KEYS,
-//            NULL)) {
-//        write(2, "Response bson is not valid\n", 27);
-//        return false;
-//    }
+    if (!bson_validate(
+            bson,
+            bson_validate_flags_t(BSON_VALIDATE_UTF8
+            | BSON_VALIDATE_DOLLAR_KEYS
+            | BSON_VALIDATE_DOT_KEYS
+            | BSON_VALIDATE_UTF8_ALLOW_NULL
+            | BSON_VALIDATE_EMPTY_KEYS),
+            NULL)) {
+        write(2, "Response bson is not valid\n", 27);
+        return false;
+    }
     return true;
 }
-
 
 /*
  * IPC utils.
@@ -182,7 +183,7 @@ int connect_local_socket(int fd) {
         if(inet_pton(AF_INET, "127.0.0.1", &name.sin_addr) <= 0){
             perror("inet_pton failed");
             return -1;
-	    }
+	}
         called = true;
     }
 
@@ -219,13 +220,17 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
         errno = EAFNOSUPPORT; // todo
         return -1;
     }
+    
+    struct sockaddr_in *sin = (struct sockaddr_in*)addr;
 
     if (socket_type(sock_fd) & SOCK_DGRAM) {
+        /*
+        udp_connections[sock_fd] = *sin;
+        return 0;
+        */
         errno = ECONNREFUSED;
         return -1;
     }
-
-    struct sockaddr_in* sin = (struct sockaddr_in*)addr;
 
     bson_t bson_request = BSON_INITIALIZER;
     BSON_APPEND_UTF8(&bson_request, "call", "connect");
@@ -313,7 +318,7 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
     }
 
     else if ((socket_type(s) & SOCK_DGRAM) && (to == NULL || !is_localhost(to))) {
-        if (to == NULL) {
+        if (to == NULL){ //&& udp_connections.find(s) == udp_connections.end()) {
             fprintf(stderr, "sendto: to is NULL\n");
             fprintf(stderr, "ыутвещ not local");
             errno = ECONNREFUSED;
@@ -348,7 +353,14 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
         BSON_APPEND_BINARY(&bson_request, "msg", BSON_SUBTYPE_BINARY, (const unsigned char*) msg, len);
         BSON_APPEND_INT64(&bson_request, "msg_len", len);
 
-        struct sockaddr_in* sin = (struct sockaddr_in*)to;
+        struct sockaddr_in* sin;
+        //if(to == NULL){
+    	//    sin = &udp_connections[s];
+        //}
+        //else{
+    	    sin = (struct sockaddr_in*)to;
+        //}
+        
         BSON_APPEND_INT32(&bson_request, "dest_ip", sin->sin_addr.s_addr);
         BSON_APPEND_INT32(&bson_request, "dest_port", ntohs(sin->sin_port));
         BSON_APPEND_INT64(&bson_request, "pid", getpid());
@@ -415,16 +427,15 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
 
         bson_destroy(&bson_request);
         
-
-	    uint8_t *buf = (uint8_t*)malloc(len);
+	uint8_t *buf = (uint8_t*)malloc(len);
         socklen_t name_len = sizeof(name);
-	    if(-1 == real_recvfrom(ipc_sock_fd, (void*)buf, len, 0, (struct sockaddr*)&name, &name_len)){
+	if(-1 == real_recvfrom(ipc_sock_fd, (void*)buf, len, 0, (struct sockaddr*)&name, &name_len)){
     	    if(EAGAIN == errno){
-		        return -1;
+	        return -1;
     	    }
     	    perror("recvfrom() ipc socket failed:\n");
     	    return -1;
-	    }
+	}
         bson_reader_t* reader = bson_reader_new_from_data(buf, sizeof(buf));
 
         const bson_t* bson_response = bson_reader_read(reader, NULL);
