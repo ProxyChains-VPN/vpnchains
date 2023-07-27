@@ -43,12 +43,16 @@ typedef ssize_t (*Sendto_callback)(int, const void*, size_t, int, const struct s
 typedef ssize_t (*Recvfrom_callback)(int, void*, size_t, int, struct sockaddr*, socklen_t*);
 typedef ssize_t (*Recvmsg_callback)(int, struct msghdr*, int);
 typedef ssize_t (*Sendmsg_callback)(int, const struct msghdr*, int);
+typedef ssize_t (*Write_callback)(int, const void*, size_t);
+typedef ssize_t (*Read_callback)(int, void*, size_t);
 
 Connect_callback __real_connect = NULL;
 Sendto_callback __real_sendto = NULL;
 Recvfrom_callback __real_recvfrom = NULL;
 Recvmsg_callback __real_recvmsg = NULL;
 Sendmsg_callback __real_sendmsg = NULL;
+Write_callback __real_write = NULL;
+Read_callback __real_read = NULL;
 
 ssize_t real_sendmsg(int sockfd, const struct msghdr *msg, int flags){
     if (__real_sendmsg == NULL) {
@@ -83,6 +87,20 @@ ssize_t real_recvmsg(int sockfd, struct msghdr *msg, int flags){
         __real_recvmsg = (Recvmsg_callback)dlsym(RTLD_NEXT, "recvmsg");
     }
     return __real_recvmsg(sockfd, msg, flags);
+}
+
+ssize_t real_write(int fd, const void *buf, size_t count){
+    if (__real_write == NULL) {
+        __real_write = (Write_callback)dlsym(RTLD_NEXT, "write");
+    }
+    return __real_write(fd, buf, count);
+}
+
+ssize_t real_read(int fd, void *buf, size_t count){
+    if (__real_read == NULL) {
+        __real_read = (Read_callback)dlsym(RTLD_NEXT, "read");
+    }
+    return __real_read(fd, buf, count);
 }
 
 
@@ -302,7 +320,12 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     return res;
 }
 
-SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
+SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen) {
+    if (!is_sock(s)) {
+        errno = ENOTSOCK;
+        return -1;
+    }
+
     if (socket_sa_family(s) == AF_INET6 && !is_localhost(to)) {
         fprintf(stderr, "sendto: AF_INET6 not supported\n");
         errno = EAFNOSUPPORT;
@@ -374,30 +397,57 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
 }
 
 SO_EXPORT ssize_t send(int s, const void *msg, size_t len, int flags) {
-//    fprintf(stderr, "send");
+    if (!is_sock(s)) {
+        errno = ENOTSOCK;
+        return -1;
+    }
     return sendto(s, msg, len, flags, NULL, 0);
 }
 
 SO_EXPORT ssize_t recv(int s, void *buf, size_t len, int flags) {
-//    fprintf(stderr, "recv");
+    if (!is_sock(s)) {
+        errno = ENOTSOCK;
+        return -1;
+    }
     return recvfrom(s, buf, len, flags, NULL, NULL);
 }
 
+SO_EXPORT ssize_t read(int fd, void *buf, size_t count) {
+    if (is_sock(fd)) {
+        return recv(fd, buf, count, 0);
+    } else {
+        return real_read(fd, buf, count);
+    }
+}
+
 SO_EXPORT ssize_t write(int fd, const void *buf, size_t count) {
-    return send(fd, buf, count, 0);
+    if (is_sock(fd)) {
+        return send(fd, buf, count, 0);
+    } else {
+        return real_write(fd, buf, count);
+    }
 }
 
 SO_EXPORT ssize_t sendmsg(int s, const struct msghdr *msg, int flags) {
     fprintf(stderr, "sendmsg\n");
-    if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM) && is_localhost((const sockaddr*) msg->msg_name)) {
+    if (!is_sock(s)) {
+        errno = ENOTSOCK;
+        return -1;
+    }
+
+    if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM) && !is_localhost((const sockaddr*) msg->msg_name)) {
         return sendto(s, msg->msg_iov[0].iov_base, msg->msg_iov[0].iov_len, flags, (const sockaddr*) msg->msg_name, msg->msg_namelen);
     }
-    else {
-        return real_sendmsg(s, msg, flags);
-    }
+
+    return real_sendmsg(s, msg, flags);
 }
 
 SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
+    if (!is_sock(s)) {
+        errno = ENOTSOCK;
+        return -1;
+    }
+
     if (socket_sa_family(s) == AF_INET6) {
         fprintf(stderr, "recvfrom: AF_INET6 not supported\n");
 //        errno = EAFNOSUPPORT;
@@ -442,13 +492,14 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
         fprintf(stderr, "recvfrom: sent request\n");
 
         bson_destroy(&bson_request);
-        
-	uint8_t *buf = (uint8_t*)malloc(len);
+
+	    uint8_t *buf = (uint8_t*)malloc(len);
         socklen_t name_len = sizeof(name);
+
         if (-1 == real_recvfrom(ipc_sock_fd, (void*)buf, len, 0, (struct sockaddr*)&name, &name_len)){
-//            if (EAGAIN == errno) {
-//                return -1;
-//            }
+            if (EAGAIN == errno) {
+                return -1;
+            }
             perror("recvfrom() ipc socket failed:\n");
             return -1;
         }
@@ -543,15 +594,21 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
 }
 
 SO_EXPORT ssize_t recvmsg(int s, struct msghdr *msg, int flags) { // todo
+    if (!is_sock(s)) {
+        fprintf(stderr, "not a socket\n");
+        errno = ENOTSOCK;
+        return -1;
+    }
+
 //    if (socket_sa_family(s) != AF_INET6) {
 //        fprintf(stderr, "AF INET 6 UNSUPPORTED\n");
 //        errno = ECONNREFUSED;
 //        return -1;
 //    }
 
-    if (socket_sa_family(s) == AF_UNIX) {
-        return real_recvmsg(s, msg, flags);
-    }
+//    if (socket_sa_family(s) == AF_UNIX || socket_sa_family(s) == AF_INET6) { // todo ??? ok???
+//        return real_recvmsg(s, msg, flags);
+//    }
 
     if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM)) {
         fprintf(stderr, "recvmsg\n fd %d pid %d\n", s, getpid());
