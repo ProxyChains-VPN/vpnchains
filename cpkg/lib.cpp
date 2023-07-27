@@ -493,10 +493,10 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
 
         bson_destroy(&bson_request);
 
-	    uint8_t *buf = (uint8_t*)malloc(len);
+	uint8_t *buf = (uint8_t*)malloc(len+1024);
         socklen_t name_len = sizeof(name);
 
-        if (-1 == real_recvfrom(ipc_sock_fd, (void*)buf, len, 0, (struct sockaddr*)&name, &name_len)){
+        if (-1 == real_recvfrom(ipc_sock_fd, (void*)buf, len+1024, 0, (struct sockaddr*)&name, &name_len)){
             if (EAGAIN == errno) {
                 return -1;
             }
