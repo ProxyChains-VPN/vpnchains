@@ -265,7 +265,7 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     int flags = fcntl(sock_fd, F_GETFL, 0);
     if (flags & O_NONBLOCK) {
-        fcntl(sock_fd, F_SETFL, !O_NONBLOCK);
+        fcntl(sock_fd, F_SETFL, !O_NONBLOCK); // todo эээээээээ мб не так??????
         if (-1 == connect_local_socket(sock_fd)){
             write(2, "Failed to connect UNIX socket\n", 30);
             return -1;
@@ -276,7 +276,6 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
             write(2, "Failed to connect UNIX socket\n", 30);
             return -1;
         }
-
     }
 
     int bytes_written = write(sock_fd, bson_get_data(&bson_request), bson_request.len);
@@ -326,10 +325,11 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
         return -1;
     }
 
-    if (socket_sa_family(s) == AF_INET6 && !is_localhost(to)) {
+    if (socket_sa_family(s) == AF_INET6) {
         fprintf(stderr, "sendto: AF_INET6 not supported\n");
-        errno = EAFNOSUPPORT;
-        return -1;
+        return real_sendto(s, msg, len, flags, to, tolen);
+//        errno = EAFNOSUPPORT;
+//        return -1;
     }
 
     else if (socket_sa_family(s) == AF_UNIX) {
@@ -346,12 +346,15 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
 
         struct sockaddr_in* sin;
         if (to == NULL) {
+            fprintf(stderr, "sendto: got TO from map\n");
             sin = &udp_connections[s];
         }
         else {
             sin = (struct sockaddr_in*)to;
         }
-
+//
+//
+//
         int ipc_sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
         if (ipc_sock_fd == -1) {
             perror("Failed to open udp socket");
@@ -375,19 +378,19 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
         BSON_APPEND_BINARY(&bson_request, "msg", BSON_SUBTYPE_BINARY, (const unsigned char*) msg, len);
         BSON_APPEND_INT64(&bson_request, "msg_len", len);
 
-        
+
         BSON_APPEND_INT32(&bson_request, "dest_ip", sin->sin_addr.s_addr);
         BSON_APPEND_INT32(&bson_request, "dest_port", ntohs(sin->sin_port));
         BSON_APPEND_INT64(&bson_request, "pid", getpid());
         BSON_APPEND_INT32(&bson_request, "fd", s);
 
         real_sendto(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len, 0, (const struct sockaddr*)&name, sizeof(name));
-
+//
         fprintf(stderr, "sendto: sent request\n");
-
-
+//
+//
         bson_destroy(&bson_request);
-        
+//        real_sendto(s, msg, len, flags, to, tolen);
         return len;
     }
 
@@ -429,13 +432,13 @@ SO_EXPORT ssize_t write(int fd, const void *buf, size_t count) {
 }
 
 SO_EXPORT ssize_t sendmsg(int s, const struct msghdr *msg, int flags) {
-    fprintf(stderr, "sendmsg\n");
+//    fprintf(stderr, "sendmsg\n");
     if (!is_sock(s)) {
         errno = ENOTSOCK;
         return -1;
     }
 
-    if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM) && !is_localhost((const sockaddr*) msg->msg_name)) {
+    if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM)) {
         return sendto(s, msg->msg_iov[0].iov_base, msg->msg_iov[0].iov_len, flags, (const sockaddr*) msg->msg_name, msg->msg_namelen);
     }
 
@@ -461,6 +464,8 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
 
     if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM)) {
         fprintf(stderr, "IN SO recvfrom fd %d pid %d\n", s, getpid());
+
+//        return real_recvfrom(s, buf, len, flags, from, fromlen);
 
         int ipc_sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
         if (ipc_sock_fd == -1) {
@@ -493,17 +498,33 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
 
         bson_destroy(&bson_request);
 
-	uint8_t *buf = (uint8_t*)malloc(len+1024);
+	    uint8_t *buf = (uint8_t*)malloc(len+1024);
         socklen_t name_len = sizeof(name);
 
-        if (-1 == real_recvfrom(ipc_sock_fd, (void*)buf, len+1024, 0, (struct sockaddr*)&name, &name_len)){
-            if (EAGAIN == errno) {
+        fprintf(stderr, "RECVFROM: got response\n");
+        int bb_read;
+
+        flags = fcntl(ipc_sock_fd, F_GETFL, 0);
+        if (flags & O_NONBLOCK) {
+            fcntl(ipc_sock_fd, F_SETFL, flags & ~O_NONBLOCK);
+            int bb_read = real_recvfrom(ipc_sock_fd, (void*)buf, len+1024, 0, (struct sockaddr*)&name, &name_len);
+            if (-1 == bb_read){
+                perror("recvfrom() ipc socket failed:\n");
                 return -1;
             }
-            perror("recvfrom() ipc socket failed:\n");
-            return -1;
+            fcntl(ipc_sock_fd, F_SETFL, flags | O_NONBLOCK);
+        } else {
+             bb_read = real_recvfrom(ipc_sock_fd, (void*)buf, len+1024, 0, (struct sockaddr*)&name, &name_len);
+             if (-1 == bb_read){
+                 perror("recvfrom() ipc socket failed:\n");
+                 return -1;
+             }
         }
-        bson_reader_t* reader = bson_reader_new_from_data(buf, sizeof(buf));
+
+        bson_reader_t* reader = bson_reader_new_from_data(buf, bb_read);
+
+        int file = open("amogus.bin", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        write(file, buf, bb_read);
 
         const bson_t* bson_response = bson_reader_read(reader, NULL);
         if (!is_valid(bson_response)){

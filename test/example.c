@@ -12,14 +12,14 @@ int main() {
     struct sockaddr_in server; /* server address                      */
     int s;                     /* client socket                       */
 
-    hostnm = gethostbyname("81.176.66.163");
-    port = 80;
+    hostnm = gethostbyname("askdjbv;oasd");
+    port = 40066;
 
     server.sin_family      = AF_INET;
     server.sin_port        = htons(port);
     server.sin_addr.s_addr = *((unsigned long *)hostnm->h_addr);
 //
-    if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
     {
         perror("Socket()");
         exit(3);
