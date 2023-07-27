@@ -9,7 +9,7 @@ import (
 // (if there were no packet recieved from tunnel side).
 var ErrorRecvfromResponse = RecvfromResponse{
 	BytesRead: -1,
-	Msg:       nil,
+	Msg:       []byte{},
 }
 
 // UnixIpPortToUDPAddr A function that converts POSIX-style IP address (that is an unsigned 64-bit value)

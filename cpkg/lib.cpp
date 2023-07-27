@@ -538,7 +538,7 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
         bson_iter_t bson_msg;
         bson_iter_t bson_src_ip;
         bson_iter_t bson_src_port;
-        int bytes_read;
+        ssize_t bytes_read;
         int src_ip;
         int src_port;
         void *binary_data;
@@ -588,8 +588,12 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
         }
 
         bytes_read = bson_iter_int64(&bson_bytes_read);
+
+        if (bytes_read == -1) {
+            return -1;
+        }
         bson_iter_binary(&bson_msg, NULL, (unsigned int *) &bytes_read, (const uint8_t**)&binary_data);
-        memcpy(buf, binary_data, bytes_read);
+        memcpy(buf, binary_data, std::min(size_t(bytes_read), len));
         src_ip = bson_iter_int32(&bson_src_ip);
         src_port = bson_iter_int32(&bson_src_port);
 
