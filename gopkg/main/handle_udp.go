@@ -19,7 +19,8 @@ type packet struct {
 	port  uint16
 }
 
-var packets map[packetOwner]packet = make(map[packetOwner]packet)
+// var packets map[packetOwner]packet = make(map[packetOwner]packet)
+var packets = NewMap()
 
 func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize int, tunnel vpn.UdpTunnel) {
 	requestType, err := ipc.GetRequestType(requestPacket)
@@ -40,17 +41,18 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 
 		var response udp_ipc_request.RecvfromResponse
 
-		packet, ok := packets[packetOwner{request.Pid, request.Fd}]
-		if !ok {
-			log.Println("no packet for fd", request.Fd)
-			response = udp_ipc_request.ErrorRecvfromResponse
-		} else {
-			response = udp_ipc_request.RecvfromResponse{
-				BytesRead: int64(len(packet.bytes)),
-				Msg:       packet.bytes,
-				SrcIp:     packet.ip,
-				SrcPort:   packet.port,
-			}
+		//packet, ok := packets[packetOwner{request.Pid, request.Fd}]
+		packet := packets.Wait(packetOwner{request.Pid, request.Fd})
+		//if !ok {
+		//	log.Println("no packet for fd", request.Fd)
+		//	response = udp_ipc_request.ErrorRecvfromResponse
+		//} else {
+		response = udp_ipc_request.RecvfromResponse{
+			BytesRead: int64(len(packet.bytes)),
+			Msg:       packet.bytes,
+			SrcIp:     packet.ip,
+			SrcPort:   packet.port,
+			//}
 		}
 
 		bytes, err := udp_ipc_request.RecvfromResponseToBytes(response)
@@ -87,17 +89,20 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 			return
 		}
 
+		buf := make([]byte, bufSize)
+
 		_, err = conn.Write(request.Msg[:request.MsgLen])
 		if err != nil {
 			return
 		}
 
-		buf := make([]byte, bufSize)
 		n, err := conn.Read(buf)
 		if err != nil {
 			log.Println("error reading from conn", err)
 			return
 		}
+
+		log.Println("read", n, "bytes")
 
 		recvPacket := packet{
 			bytes: buf[:n],
@@ -105,7 +110,7 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 			port:  request.DestPort,
 		}
 
-		packets[packetOwner{request.Pid, request.Fd}] = recvPacket
+		packets.Set(packetOwner{request.Pid, request.Fd}, recvPacket)
 	default:
 		log.Println("unknown request type:", requestType)
 		return
