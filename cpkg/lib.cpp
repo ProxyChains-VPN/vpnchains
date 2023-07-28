@@ -472,8 +472,6 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
             perror("Failed to open udp socket");
             return -1;
         }
-        int flags = fcntl(s, F_GETFL, 0);
-        fcntl(ipc_sock_fd, F_SETFL, flags);
 
         struct sockaddr_in name;
         memset(&name, 0, sizeof(struct sockaddr_in));
@@ -490,7 +488,6 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
         BSON_APPEND_INT32(&bson_request, "fd", s);
         BSON_APPEND_INT64(&bson_request, "msg_len", len);
 
-        fprintf(stderr, "recvfrom: sent request\n");
 
         real_sendto(ipc_sock_fd, bson_get_data(&bson_request), bson_request.len, 0, (const struct sockaddr*)&name, sizeof(name));
 
@@ -501,13 +498,13 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
 	    uint8_t *buf = (uint8_t*)malloc(len+1024);
         socklen_t name_len = sizeof(name);
 
-        fprintf(stderr, "RECVFROM: got response\n");
+
         int bb_read;
 
-        flags = fcntl(ipc_sock_fd, F_GETFL, 0);
+        int flags = fcntl(ipc_sock_fd, F_GETFL, 0);
         if (flags & O_NONBLOCK) {
             fcntl(ipc_sock_fd, F_SETFL, flags & ~O_NONBLOCK);
-            int bb_read = real_recvfrom(ipc_sock_fd, (void*)buf, len+1024, 0, (struct sockaddr*)&name, &name_len);
+            bb_read = real_recvfrom(ipc_sock_fd, (void*)buf, len+1024, 0, (struct sockaddr*)&name, &name_len);
             if (-1 == bb_read){
                 perror("recvfrom() ipc socket failed:\n");
                 return -1;
@@ -520,6 +517,8 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
                  return -1;
              }
         }
+
+        fprintf(stderr, "RECVFROM: got response, bytes read %d\n", bb_read);
 
         bson_reader_t* reader = bson_reader_new_from_data(buf, bb_read);
 
