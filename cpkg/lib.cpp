@@ -251,7 +251,7 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
 
     if (socket_type(sock_fd) & SOCK_DGRAM) {
         udp_connections[sock_fd] = *sin;
-        return 0;
+        return real_connect(sock_fd, addr, addrlen);
     }
 
     bson_t bson_request = BSON_INITIALIZER;
@@ -633,7 +633,18 @@ SO_EXPORT ssize_t recvmsg(int s, struct msghdr *msg, int flags) { // todo
 
     if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM)) {
         fprintf(stderr, "recvmsg\n fd %d pid %d\n", s, getpid());
-        return recvfrom(s, msg->msg_iov[0].iov_base, msg->msg_iov[0].iov_len, flags, NULL, NULL);
+
+        int retval = recvfrom(s, msg->msg_iov[0].iov_base, msg->msg_iov[0].iov_len, flags, NULL, NULL);
+
+//        struct sockaddr_in name;
+//        memset(&name, 0, sizeof(struct sockaddr_in));
+//        name.sin_family = AF_INET;
+//        name.sin_port = htons(get_ipc_port());
+//        if(inet_pton(AF_INET, "127.0.0.1", &name.sin_addr) <= 0){
+//            perror("inet_pton failed");
+//            return -1;
+//        }
+        msg->msg_name = NULL;
     }
 
     return real_recvmsg(s, msg, flags);
