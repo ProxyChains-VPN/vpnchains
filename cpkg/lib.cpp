@@ -360,8 +360,8 @@ SO_EXPORT ssize_t sendto(int s, const void *msg, size_t len, int flags, const st
             perror("Failed to open udp socket");
             return -1;
         }
-        int flags = fcntl(s, F_GETFL, 0);
-        fcntl(ipc_sock_fd, F_SETFL, flags);
+        int sock_flags = fcntl(s, F_GETFL, 0);
+        fcntl(ipc_sock_fd, F_SETFL, sock_flags);
 
         struct sockaddr_in name;
         memset(&name, 0, sizeof(struct sockaddr_in));
