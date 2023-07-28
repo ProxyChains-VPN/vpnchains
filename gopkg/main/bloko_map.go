@@ -35,6 +35,7 @@ func (m *Map) Wait(key packetOwner) packet {
 
 	value, ok := m.m[key]
 	if ok {
+		delete(m.m, key)
 		m.Unlock()
 		return value
 	}
