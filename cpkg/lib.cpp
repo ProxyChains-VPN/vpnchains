@@ -522,9 +522,6 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
 
         bson_reader_t* reader = bson_reader_new_from_data(buf, bb_read);
 
-        int file = open("amogus.bin", O_WRONLY | O_CREAT | O_TRUNC, 0666);
-        write(file, buf, bb_read);
-
         const bson_t* bson_response = bson_reader_read(reader, NULL);
         if (!is_valid(bson_response)){
             return -1;
