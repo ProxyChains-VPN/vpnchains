@@ -8,19 +8,18 @@ import (
 	"vpnchains/gopkg/vpn"
 )
 
-type packetOwner struct {
+type PacketOwner struct {
 	pid int64
 	fd  int32
 }
 
-type packet struct {
+type Packet struct {
 	bytes []byte
 	ip    int32
 	port  uint16
 }
 
-// var packets map[packetOwner]packet = make(map[packetOwner]packet)
-var packets = NewMap()
+var packets = NewPacketsBuffer()
 
 func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize int, tunnel vpn.UdpTunnel) {
 	requestType, err := ipc.GetRequestType(requestPacket)
@@ -41,18 +40,13 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 
 		var response udp_ipc_request.RecvfromResponse
 
-		//packet, ok := packets[packetOwner{request.Pid, request.Fd}]
-		packet := packets.Wait(packetOwner{request.Pid, request.Fd})
-		//if !ok {
-		//	log.Println("no packet for fd", request.Fd)
-		//	response = udp_ipc_request.ErrorRecvfromResponse
-		//} else {
+		packet := packets.WaitForPacket(&PacketOwner{request.Pid, request.Fd})
+
 		response = udp_ipc_request.RecvfromResponse{
 			BytesRead: int64(len(packet.bytes)),
 			Msg:       packet.bytes,
 			SrcIp:     packet.ip,
 			SrcPort:   packet.port,
-			//}
 		}
 
 		bytes, err := udp_ipc_request.RecvfromResponseToBytes(response)
@@ -104,13 +98,13 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 
 		log.Println("read", n, "bytes")
 
-		recvPacket := packet{
+		recvPacket := &Packet{
 			bytes: buf[:n],
 			ip:    request.DestIp,
 			port:  request.DestPort,
 		}
 
-		packets.Set(packetOwner{request.Pid, request.Fd}, recvPacket)
+		packets.PushPacket(&PacketOwner{request.Pid, request.Fd}, recvPacket)
 	default:
 		log.Println("unknown request type:", requestType)
 		return
