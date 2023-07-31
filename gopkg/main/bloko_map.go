@@ -9,22 +9,24 @@ const MaxPacketsQueueSize = 16
 
 type PacketsBuffer struct {
 	sync.Mutex
-	subs map[*PacketOwner]chan *Packet
+	subs map[PacketOwner]chan *Packet
 }
 
 func NewPacketsBuffer() *PacketsBuffer {
+	log.Println("creating packets buffer")
 	return &PacketsBuffer{
-		subs: make(map[*PacketOwner]chan *Packet),
+		subs: make(map[PacketOwner]chan *Packet),
 	}
 }
 
-func (buf *PacketsBuffer) PushPacket(key *PacketOwner, value *Packet) {
+func (buf *PacketsBuffer) PushPacket(key PacketOwner, value *Packet) {
 	log.Println("push packet", key)
 	buf.Lock()
 	defer buf.Unlock()
 
+	log.Println(len(buf.subs))
 	if _, ok := buf.subs[key]; !ok {
-		log.Println("creating channel for", key)
+		log.Println("l27 creating channel for", key)
 		buf.subs[key] = make(chan *Packet, MaxPacketsQueueSize)
 	}
 
@@ -32,11 +34,13 @@ func (buf *PacketsBuffer) PushPacket(key *PacketOwner, value *Packet) {
 	log.Println("pushed packet", key)
 }
 
-func (buf *PacketsBuffer) WaitForPacket(key *PacketOwner) *Packet {
+func (buf *PacketsBuffer) WaitForPacket(key PacketOwner) *Packet {
 	log.Println("wait for packet", key)
 	buf.Lock()
+
+	log.Println(len(buf.subs))
 	if _, ok := buf.subs[key]; !ok {
-		log.Println("creating channel for", key)
+		log.Println("l39 creating channel for", key)
 		buf.subs[key] = make(chan *Packet, MaxPacketsQueueSize)
 	}
 	buf.Unlock()

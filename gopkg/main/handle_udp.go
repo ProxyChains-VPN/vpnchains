@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"sync"
 	"vpnchains/gopkg/ipc"
 	"vpnchains/gopkg/ipc_request/udp_ipc_request"
 	"vpnchains/gopkg/vpn"
@@ -19,9 +20,17 @@ type Packet struct {
 	port  uint16
 }
 
-var packets = NewPacketsBuffer()
+var packets *PacketsBuffer = nil
+
+var rm sync.Mutex
 
 func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize int, tunnel vpn.UdpTunnel) {
+	rm.Lock()
+	if packets == nil {
+		packets = NewPacketsBuffer()
+	}
+	rm.Unlock()
+
 	requestType, err := ipc.GetRequestType(requestPacket)
 	if err != nil {
 		log.Println("ERROR PARSING", err)
@@ -40,7 +49,7 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 
 		var response udp_ipc_request.RecvfromResponse
 
-		packet := packets.WaitForPacket(&PacketOwner{request.Pid, request.Fd})
+		packet := packets.WaitForPacket(PacketOwner{request.Pid, request.Fd})
 
 		response = udp_ipc_request.RecvfromResponse{
 			BytesRead: int64(len(packet.bytes)),
@@ -104,7 +113,7 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 			port:  request.DestPort,
 		}
 
-		packets.PushPacket(&PacketOwner{request.Pid, request.Fd}, recvPacket)
+		packets.PushPacket(PacketOwner{request.Pid, request.Fd}, recvPacket)
 	default:
 		log.Println("unknown request type:", requestType)
 		return
