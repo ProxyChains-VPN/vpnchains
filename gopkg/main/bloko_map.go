@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"sync"
+	"time"
 )
 
 const MaxPacketsQueueSize = 16
@@ -45,7 +46,11 @@ func (buf *PacketsBuffer) WaitForPacket(key PacketOwner) *Packet {
 	}
 	buf.Unlock()
 
-	packet := <-buf.subs[key]
-	log.Println("got packet", key, packet)
-	return packet
+	select {
+	case packet := <-buf.subs[key]:
+		log.Println("got packet", key, packet)
+		return packet
+	case <-time.After(time.Second * 2):
+		return nil
+	}
 }

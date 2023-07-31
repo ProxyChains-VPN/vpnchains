@@ -634,12 +634,7 @@ SO_EXPORT ssize_t recvmsg(int s, struct msghdr *msg, int flags) { // todo
     if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM)) {
         fprintf(stderr, "recvmsg\n fd %d pid %d\n", s, getpid());
 
-	if(msg->msg_namelen < sizeof(struct sockaddr_in)){
-	    msg->msg_name = NULL;
-	    msg->msg_namelen = 0;
-	}
-
-        int retval = recvfrom(s, msg->msg_iov[0].iov_base, msg->msg_iov[0].iov_len, flags, (struct sockaddr*)msg->msg_name, &msg->msg_namelen);
+        int retval = recvfrom(s, msg->msg_iov[0].iov_base, msg->msg_iov[0].iov_len, flags, NULL, NULL);
 
 //        struct sockaddr_in name;
 //        memset(&name, 0, sizeof(struct sockaddr_in));
@@ -649,8 +644,7 @@ SO_EXPORT ssize_t recvmsg(int s, struct msghdr *msg, int flags) { // todo
 //            perror("inet_pton failed");
 //            return -1;
 //        }
-        //msg->msg_name = NULL;
-        return retval;
+        msg->msg_name = NULL;
     }
 
     return real_recvmsg(s, msg, flags);
