@@ -586,6 +586,8 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
         bytes_read = bson_iter_int64(&bson_bytes_read);
 
         if (bytes_read == -1) {
+            fprintf(stderr, "recvfrom()s server failed, SORRY\n");
+            errno = EAGAIN;
             return -1;
         }
         bson_iter_binary(&bson_msg, NULL, (unsigned int *) &bytes_read, (const uint8_t**)&binary_data);
@@ -593,12 +595,14 @@ SO_EXPORT ssize_t recvfrom(int s, void *buf, size_t len, int flags, struct socka
         src_ip = bson_iter_int32(&bson_src_ip);
         src_port = bson_iter_int32(&bson_src_port);
 
-        if (from != NULL){
+        fprintf(stderr, "RECVFROM: from len is %d\n", *fromlen);
+
+        if (from != NULL && *fromlen >= sizeof(struct sockaddr_in)){
             struct sockaddr_in* from_in = (struct sockaddr_in*)from;
             from_in->sin_family = AF_INET;
             from_in->sin_addr.s_addr = src_ip;
             from_in->sin_port = src_port;
-            *fromlen = sizeof(from_in);
+            *fromlen = sizeof(struct sockaddr_in);
         }
 
         bson_reader_destroy(reader);
@@ -634,10 +638,10 @@ SO_EXPORT ssize_t recvmsg(int s, struct msghdr *msg, int flags) { // todo
     if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM)) {
         fprintf(stderr, "recvmsg\n fd %d pid %d\n", s, getpid());
 
-        if (msg->msg_namelen < sizeof(struct sockaddr_in)){
-            msg->msg_name = NULL;
-            msg->msg_namelen = 0;
-        }
+//        if (msg->msg_namelen < sizeof(struct sockaddr_in)){
+//            msg->msg_name = NULL;
+//            msg->msg_namelen = 0;
+//        }
 
         int retval = recvfrom(s, msg->msg_iov[0].iov_base, msg->msg_iov[0].iov_len, flags, (struct sockaddr*)msg->msg_name, &msg->msg_namelen);
 
