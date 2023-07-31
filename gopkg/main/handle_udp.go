@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net"
-	"sync"
 	"vpnchains/gopkg/ipc"
 	"vpnchains/gopkg/ipc_request/udp_ipc_request"
 	"vpnchains/gopkg/vpn"
@@ -20,17 +19,9 @@ type Packet struct {
 	port  uint16
 }
 
-var packets *PacketsBuffer = nil
-
-var rm sync.Mutex
+var packets *PacketsBuffer = NewPacketsBuffer()
 
 func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize int, tunnel vpn.UdpTunnel) {
-	rm.Lock()
-	if packets == nil {
-		packets = NewPacketsBuffer()
-	}
-	rm.Unlock()
-
 	requestType, err := ipc.GetRequestType(requestPacket)
 	if err != nil {
 		log.Println("ERROR PARSING", err)
@@ -51,11 +42,18 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 
 		packet := packets.WaitForPacket(PacketOwner{request.Pid, request.Fd})
 
-		response = udp_ipc_request.RecvfromResponse{
-			BytesRead: int64(len(packet.bytes)),
-			Msg:       packet.bytes,
-			SrcIp:     packet.ip,
-			SrcPort:   packet.port,
+		if packet == nil {
+			response = udp_ipc_request.RecvfromResponse{
+				BytesRead: -1,
+				Msg:       []byte{},
+			}
+		} else {
+			response = udp_ipc_request.RecvfromResponse{
+				BytesRead: int64(len(packet.bytes)),
+				Msg:       packet.bytes,
+				SrcIp:     packet.ip,
+				SrcPort:   packet.port,
+			}
 		}
 
 		bytes, err := udp_ipc_request.RecvfromResponseToBytes(response)
@@ -99,21 +97,26 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 			return
 		}
 
-		n, err := conn.Read(buf)
-		if err != nil {
-			log.Println("error reading from conn", err)
-			return
-		}
+		go func() {
+			for {
+				n, err := conn.Read(buf)
+				if err != nil {
+					log.Println("error reading from conn", err)
+					return
+				}
 
-		log.Println("read", n, "bytes")
+				log.Println("read", n, "bytes")
 
-		recvPacket := &Packet{
-			bytes: buf[:n],
-			ip:    request.DestIp,
-			port:  request.DestPort,
-		}
+				recvPacket := &Packet{
+					bytes: buf[:n],
+					ip:    request.DestIp,
+					port:  request.DestPort,
+				}
 
-		packets.PushPacket(PacketOwner{request.Pid, request.Fd}, recvPacket)
+				packets.PushPacket(PacketOwner{request.Pid, request.Fd}, recvPacket)
+			}
+		}()
+
 	default:
 		log.Println("unknown request type:", requestType)
 		return
