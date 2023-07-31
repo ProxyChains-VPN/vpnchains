@@ -1,49 +1,47 @@
 package main
 
-import "sync"
+import (
+	"log"
+	"sync"
+)
 
-func NewMap() *Map {
-	return &Map{
-		m:    make(map[packetOwner]packet),
-		subs: make(map[packetOwner][]chan packet),
-	}
-}
+const MaxPacketsQueueSize = 16
 
-type Map struct {
+type PacketsBuffer struct {
 	sync.Mutex
-
-	m    map[packetOwner]packet
-	subs map[packetOwner][]chan packet
+	subs map[*PacketOwner]chan *Packet
 }
 
-func (m *Map) Set(key packetOwner, value packet) {
-	m.Lock()
-	defer m.Unlock()
-
-	m.m[key] = value
-
-	// Send the new value to all waiting subscribers of the key
-	for _, sub := range m.subs[key] {
-		sub <- value
+func NewPacketsBuffer() *PacketsBuffer {
+	return &PacketsBuffer{
+		subs: make(map[*PacketOwner]chan *Packet),
 	}
-	delete(m.subs, key)
 }
 
-func (m *Map) Wait(key packetOwner) packet {
-	m.Lock()
-	// Unlock cannot be deferred so we can unblock Set() while waiting
+func (buf *PacketsBuffer) PushPacket(key *PacketOwner, value *Packet) {
+	log.Println("push packet", key)
+	buf.Lock()
+	defer buf.Unlock()
 
-	value, ok := m.m[key]
-	if ok {
-		delete(m.m, key)
-		m.Unlock()
-		return value
+	if _, ok := buf.subs[key]; !ok {
+		log.Println("creating channel for", key)
+		buf.subs[key] = make(chan *Packet, MaxPacketsQueueSize)
 	}
 
-	// if there is no value yet, subscribe to any new values for this key
-	ch := make(chan packet)
-	m.subs[key] = append(m.subs[key], ch)
-	m.Unlock()
+	buf.subs[key] <- value
+	log.Println("pushed packet", key)
+}
 
-	return <-ch
+func (buf *PacketsBuffer) WaitForPacket(key *PacketOwner) *Packet {
+	log.Println("wait for packet", key)
+	buf.Lock()
+	if _, ok := buf.subs[key]; !ok {
+		log.Println("creating channel for", key)
+		buf.subs[key] = make(chan *Packet, MaxPacketsQueueSize)
+	}
+	buf.Unlock()
+
+	packet := <-buf.subs[key]
+	log.Println("got packet", key, packet)
+	return packet
 }
