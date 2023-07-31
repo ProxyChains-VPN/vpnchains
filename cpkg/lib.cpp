@@ -634,6 +634,11 @@ SO_EXPORT ssize_t recvmsg(int s, struct msghdr *msg, int flags) { // todo
     if (socket_sa_family(s) == AF_INET && (socket_type(s) & SOCK_DGRAM)) {
         fprintf(stderr, "recvmsg\n fd %d pid %d\n", s, getpid());
 
+	if(msg->msg_namelen < sizeof(struct sockaddr_in)){
+	    msg->msg_name = NULL;
+	    msg->msg_namelen = 0;
+	}
+
         int retval = recvfrom(s, msg->msg_iov[0].iov_base, msg->msg_iov[0].iov_len, flags, (struct sockaddr*)msg->msg_name, &msg->msg_namelen);
 
 //        struct sockaddr_in name;
