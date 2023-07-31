@@ -8,7 +8,7 @@ import (
 	"vpnchains/gopkg/vpn"
 )
 
-func startIpcWithSubprocess(ready chan struct{}, tcpTunnel vpn.TcpTunnel, udpTunnel vpn.UdpTunnel, port int, bufSize int) {
+func startIpcWithSubprocess(tcpTunnel vpn.TcpTunnel, udpTunnel vpn.UdpTunnel, port int, bufSize int) {
 	tcpConn := tcp_ipc.NewConnectionFromIpPort(net.IPv4(127, 0, 0, 1), port)
 	udpConn := udp_ipc.NewConnectionFromIpPort(net.IPv4(127, 0, 0, 1), port, bufSize)
 
