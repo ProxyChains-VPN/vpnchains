@@ -90,8 +90,6 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 			return
 		}
 
-		buf := make([]byte, bufSize)
-
 		_, err = conn.Write(request.Msg[:request.MsgLen])
 		if err != nil {
 			return
@@ -99,6 +97,9 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 
 		go func() {
 			for {
+				buf := make([]byte, bufSize)
+
+				log.Println("reading from udp cringe")
 				n, err := conn.Read(buf)
 				if err != nil {
 					log.Println("error reading from conn", err)
