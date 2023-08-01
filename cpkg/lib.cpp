@@ -8,14 +8,14 @@
 #include <string.h>
 #include <gnu/lib-names.h>
 #include <stdbool.h>
-#include <libbson-1.0/bson/bson.h>
+#include <bson/bson.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <map>
 
-std::map<int, struct sockaddr_in> udp_connections;
+static std::map<int, struct sockaddr_in> udp_connections;
 
 /*
  * Gets the IPC port from the environment variable VPNCHAINS_IPC_SERVER_PORT.
@@ -243,7 +243,7 @@ SO_EXPORT int connect(int sock_fd, const struct sockaddr *addr, socklen_t addrle
     }
 
     if (socket_sa_family(sock_fd) == AF_INET6) {
-        errno = EAFNOSUPPORT; // todo
+        errno = EAFNOSUPPORT;
         return -1;
     }
 
@@ -660,4 +660,16 @@ SO_EXPORT ssize_t recvmsg(int s, struct msghdr *msg, int flags) { // todo
     return real_recvmsg(s, msg, flags);
 //    fprintf(stderr, "recvmsg\n fd %d pid %d\n", sockfd, getpid());
 //    return recvfrom(sockfd, msg->msg_iov[0].iov_base, msg->msg_iov[0].iov_len, flags, NULL, NULL);
+}
+
+SO_EXPORT int sendmmsg(int sockfd, struct mmsghdr *msgvec, unsigned int vlen,
+                              int flags) {
+    int cnt = 0;
+    for (int i = 0; i < vlen; i++) {
+        if (sendmsg(sockfd, &msgvec[i].msg_hdr, flags) != -1) {
+            cnt++;
+        }
+    }
+
+    return cnt;
 }
