@@ -5,17 +5,19 @@ export VPNCHAINS_LIB_NAME=libvpnchains_inject.so
 export VPNCHAINS_EXECUTABLE_NAME=vpnchains
 export VPNCHAINS_OUTPUT_DIR=build
 
-LIBBSON_INCLUDE_DIR=/usr/include/libbson-1.0
+export LIBBSON_INCLUDE_DIR=/usr/include/libbson-1.0
+
+# Subroutines.
 
 # $1 - exit code
 exit_if_unsuccessful() {
     if [ ! $1 -eq 0 ] ; then
-        echo "Build unsuccessful! Exiting with code 1..."
+        echo "Unsuccessful! Exiting with code 1..."
         exit 1
     fi
 }
 
-check_if_libbson_installed() {
+exit_if_libbson_not_installed() {
     echo "Checking requirements"
 
     if [ ! -d "$LIBBSON_INCLUDE_DIR" ]; then
@@ -36,6 +38,8 @@ compile_and_mv_lib() {
 
     echo "Moving $VPNCHAINS_LIB_NAME to /usr/lib; need sudo"
     sudo mv $VPNCHAINS_OUTPUT_DIR/$VPNCHAINS_LIB_NAME /usr/lib/$VPNCHAINS_LIB_NAME
+
+    exit_if_unsuccessful $?
 }
 
 compile_app() {
@@ -49,11 +53,11 @@ compile_app() {
 }
 
 
-# The script itself.
+# !!! The script itself.
 
 echo "Running vpnchains install script..."
 
-check_if_libbson_installed
+exit_if_libbson_not_installed
 
 if [ -f "/usr/lib/$VPNCHAINS_LIB_NAME" ]; then
     read -r -p "$VPNCHAINS_LIB_NAME already exist! Recompile and replace? [Y/n] " response
@@ -71,8 +75,11 @@ fi
 
 compile_app
 
-# FOR REMOVAL ON RELEASE
-echo "Compiling test"
-make test -B
-exit_if_unsuccessful $?
 echo "Truly done"
+
+
+# FOR REMOVAL
+#echo "Compiling test"
+#make test -B
+#exit_if_unsuccessful $?
+#echo "Truly done"

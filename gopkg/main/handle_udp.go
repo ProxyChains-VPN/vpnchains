@@ -38,10 +38,9 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 
 		log.Println("recvfrom request", "pid/fd", request.Fd, request.Pid)
 
-		var response udp_ipc_request.RecvfromResponse
-
 		packet := packets.WaitForPacket(PacketOwner{request.Pid, request.Fd})
 
+		var response udp_ipc_request.RecvfromResponse
 		if packet == nil {
 			response = udp_ipc_request.RecvfromResponse{
 				BytesRead: -1,
@@ -83,6 +82,7 @@ func handleUdpIpcMessage(sockAddr *net.UDPAddr, requestPacket []byte, bufSize in
 
 		sa := udp_ipc_request.UnixIpPortToUDPAddr(uint32(request.DestIp), uint16(request.DestPort))
 		log.Println("sendto sa", sa.IP, sa.Port, "pid/fd", request.Pid, request.Fd)
+		log.Println(request.Msg[:request.MsgLen], request.MsgLen)
 
 		conn, err := tunnel.Dial(sa)
 		if err != nil {
