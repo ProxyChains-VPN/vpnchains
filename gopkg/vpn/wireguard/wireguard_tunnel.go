@@ -9,9 +9,9 @@ import (
 
 // WireguardTunnel An interface that represents a VPN tunnel.
 type WireguardTunnel struct {
-	dev *device.Device // TODO а оно пригодится???
+	dev *device.Device // todo maybe unused at all?
 	net *netstack.Net
-} // TODO инкапсулировать инкапсулируемое
+}
 
 // NewTunnel creates a new tunnel.
 // localAddresses - local addresses of the tunnel.
