@@ -1,4 +1,4 @@
-build
-.idea
-.vscode
+build/
+.idea/
+.vscode/
 wg0.conf
