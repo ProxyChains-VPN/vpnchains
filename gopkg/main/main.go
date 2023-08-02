@@ -111,7 +111,7 @@ func main() {
 
 	cmd := ipc.CreateCommandWithInjectedLibrary(*injectedLibPath, commandPath, commandArgs)
 
-	startIpcWithSubprocess(tunnel, tunnel, *ipcServerPort, *bufSize)
+	startIpcWithSubprocess(tunnel, *ipcServerPort, *bufSize)
 
 	err = cmd.Run()
 	if err != nil {

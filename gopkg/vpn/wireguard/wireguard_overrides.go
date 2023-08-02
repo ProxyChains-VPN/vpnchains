@@ -1,7 +1,5 @@
 package wireguard
 
-// todo split into files
-
 import (
 	"context"
 	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
@@ -22,19 +20,6 @@ func (tunnel *WireguardTunnel) Connect(addr *net.TCPAddr) (*gonet.TCPConn, error
 	socket, err := tunnel.net.DialContextTCP(dialContext, addr)
 	if err != nil {
 		log.Println(err, "24 line overrides")
-		return nil, err
-	}
-
-	return socket, nil
-}
-
-// Dial dials the specified address.
-// Is used when intercepting sendto() syscalls.
-// addr - address to dial.
-func (tunnel *WireguardTunnel) Dial(addr *net.UDPAddr) (*gonet.UDPConn, error) {
-	socket, err := tunnel.net.DialUDP(nil, addr)
-	if err != nil {
-		log.Println(err, "33 line overrides")
 		return nil, err
 	}
 
