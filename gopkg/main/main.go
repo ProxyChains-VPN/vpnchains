@@ -11,14 +11,15 @@ import (
 
 // DefaultIpcServerPort is the default port for the IPC server.
 // If the port is neither specified in flags nor in the environment (IpcServerPortEnvVar),
-// this port (45454, I guess) will be used.
+// this port (45454, I guess) will be used. Should be specified explicitly for more than
+// one vpnchains instance.
 const DefaultIpcServerPort = 45454
 
 // IpcServerPortEnvVar is the name of the environment variable that
 // contains the port for the IPC server.
 const IpcServerPortEnvVar = "VPNCHAINS_IPC_SERVER_PORT"
 
-// DefaultInjectedLibPath is the default path to the injected library.
+// DefaultInjectedLibPath is the default path to the intercepting library.
 // If the path is neither specified in flags nor in the environment (InjectedLibPathEnvVar),
 // this path (/usr/lib/libvpnchains_inject.so, I guess) will be used.
 const DefaultInjectedLibPath = "/usr/lib/libvpnchains_inject.so"
@@ -27,10 +28,10 @@ const DefaultInjectedLibPath = "/usr/lib/libvpnchains_inject.so"
 // contains the path to the injected library.
 const InjectedLibPathEnvVar = "VPNCHAINS_INJECT_LIB_PATH"
 
-// DefaultBufSize is the default size of the buffer used for reading from the socket.
+// DefaultBufSize is the default size of the buffer used for reading from sockets.
 // If the size is neither specified in flags nor in the environment (BufSizeEnvVar),
-// this size (100500, I guess) will be used.
-const DefaultBufSize = 100500
+// this size (65536, I guess) will be used.
+const DefaultBufSize = 65536
 
 // BufSizeEnvVar is the name of the environment variable that
 // contains the size of the buffer used for reading from the socket.
@@ -75,7 +76,7 @@ func main() {
 	mtu := flag.Int("mtu", envMtu, "mtu for the wireguard tunnel")
 	bufSize := flag.Int("buf", envBufSize, "size of the buffer used for reading from the socket")
 	ipcServerPort := flag.Int("port", envIpcServerPort, "port for the IPC server [0, 65535]")
-	injectedLibPath := flag.String("injected-lib-path", envInjectedLibPath, "path to the injected library")
+	injectedLibPath := flag.String("lib-path", envInjectedLibPath, "path to the injected library")
 
 	wireguardConfigPath := flag.String("config", DefaultWireguardConfigPath, "path to the wireguard config")
 
