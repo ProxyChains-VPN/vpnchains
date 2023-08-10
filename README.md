@@ -1,4 +1,8 @@
 # vpnchains
+## About
+Allows to intercept child proccesses' connect() calls (see LD_PRELOAD) and de facto connect via wireguard tunnel.
+Implemented with the use of gvisor netstack and wireguard-go (that is implemented with the former library).
+
 ## How to install
 First of all, install libbson (mongo-db-driver). Most likely, it exists in official repos of your Linux distribution.  
 Secondly, run `install.sh` script; this one will check if libbson includes exist in `/usr/include` directory and compile and move library in `/usr/lib/libvpnchains_inject.so`. The executable will be located at `build/vpnchains`.
@@ -12,7 +16,7 @@ Secondly, run `install.sh` script; this one will check if libbson includes exist
 - If the default path to the wireguard config is not specified in flag `-config` than relative path `wg0.conf` will be used.
 
 ## Supported OS
-Arch Linux, kernel 6.4.7-arch1-1; Ubuntu 22.04; everything else may have some installation issues, but should work
+Arch Linux, kernel 6.4.7-arch1-1; probably Ubuntu 22.04; everything else (Linux and *unix) may have some installation issues, but should work
 
 ## Apps that are guaranteed to work
 - wget
